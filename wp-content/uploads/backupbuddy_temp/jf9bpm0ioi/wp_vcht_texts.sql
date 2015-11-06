@@ -1,0 +1,13 @@
+CREATE TABLE `wp_vcht_texts` (  `id` mediumint(9) NOT NULL AUTO_INCREMENT,  `original` text NOT NULL,  `content` text NOT NULL,  `isTextarea` tinyint(1) NOT NULL,  UNIQUE KEY `id` (`id`)) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
+/*!40000 ALTER TABLE `wp_vcht_texts` DISABLE KEYS */;
+INSERT INTO `wp_vcht_texts` VALUES('1', 'Need Help ?', 'Need Help ?', '0');
+INSERT INTO `wp_vcht_texts` VALUES('2', 'Enter your name', 'Enter your name', '0');
+INSERT INTO `wp_vcht_texts` VALUES('3', 'Start', 'Start', '0');
+INSERT INTO `wp_vcht_texts` VALUES('4', 'Hello :)\nPlease write your question.', 'Hello :)\nPlease write your question.', '1');
+INSERT INTO `wp_vcht_texts` VALUES('5', 'This discussion is finished.', 'This discussion is finished.', '0');
+INSERT INTO `wp_vcht_texts` VALUES('6', 'Sorry, there are currently no operators online.\nIf you wish, send us your question using the form below.', 'Sorry, there are currently no operators online.\nIf you wish, send us your question using the form below.', '1');
+INSERT INTO `wp_vcht_texts` VALUES('7', 'Enter your email here', 'Enter your email here', '0');
+INSERT INTO `wp_vcht_texts` VALUES('8', 'Write your message here', 'Write your message here', '0');
+INSERT INTO `wp_vcht_texts` VALUES('9', 'Send this message', 'Send this message', '0');
+INSERT INTO `wp_vcht_texts` VALUES('10', 'Thank you.\nYour message has been sent.\nWe will contact you soon.', 'Thank you.\nYour message has been sent.\nWe will contact you soon.', '1');
+/*!40000 ALTER TABLE `wp_vcht_texts` ENABLE KEYS */;
