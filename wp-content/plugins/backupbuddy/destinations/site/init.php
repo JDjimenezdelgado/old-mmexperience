@@ -23,6 +23,7 @@ class pb_backupbuddy_destination_site {
 		'chunks_sent'	=>		0,
 		'sendType'		=>		'',		// Set on the fly prior to calling send. Valid types: backup, media, theme, plugin. These determine the destination root location for a file.
 		'sendFilePath'	=>		'',		// Location to store file on remote server relative to the root storage location based on send type. Optional.
+		'disabled'					=>		'0',		// When 1, disable this destination.
 	);
 	
 	private static $_timeStart = 0;
@@ -36,6 +37,15 @@ class pb_backupbuddy_destination_site {
 	 *	@return		boolean						True on success, else false.
 	 */
 	public static function send( $settings = array(), $files = array(), $send_id = '', $delete_after = false ) {
+		global $pb_backupbuddy_destination_errors;
+		if ( '1' == $settings['disabled'] ) {
+			$pb_backupbuddy_destination_errors[] = __( 'Error #48933: This destination is currently disabled. Enable it under this destination\'s Advanced Settings.', 'it-l10n-backupbuddy' );
+			return false;
+		}
+		if ( ! is_array( $files ) ) {
+			$files = array( $files );
+		}
+		
 		self::$_timeStart = microtime( true );
 		
 		if ( count( $files ) > 1 ) {
@@ -93,7 +103,7 @@ class pb_backupbuddy_destination_site {
 			$prevPointer = 0;
 		}
 		
-		pb_backupbuddy::status( 'details', 'Reading in `' . $encodeReducedPayload . '` bytes at a time.' );
+		pb_backupbuddy::status( 'details', 'Reading in `' . $encodeReducedPayload . '` bytes at a time to send.' );
 		$dataRemains = true;
 		//$loopCount = 0;
 		//$loopTimeSum = 0; // Used for average send time per chunk.
@@ -201,7 +211,7 @@ class pb_backupbuddy_destination_site {
 		}
 		pb_backupbuddy::status( 'details', 'Fileoptions data loaded.' );
 		$fileoptions = &$fileoptions_obj->options;
-		$fileoptions['finish_time'] = time();
+		$fileoptions['finish_time'] = microtime(true);
 		$fileoptions['status'] = 'success';
 		$fileoptions['_multipart_status'] = 'Sent all parts.';
 		if ( isset( $uploaded_speed ) ) {

@@ -111,7 +111,11 @@ class pb_backupbuddy_import {
 		if ( $hidden === true ) {
 			$return .= ' style="display: none; "';
 		}
-		$return .= '>' . $default_text . '</pre></div>';
+		$return .= '>' . $default_text . '</pre>';
+		$return .= '<div style="text-align: center;">
+			<button class="button button-primary" onClick="backupbuddy_saveLogAsFile();" style="margin-left: auto; margin-right: auto; display: inherit; font-size: 0.9em;">Download Status Log (.txt)</button>
+		</div>';
+		$return .= '</div>';
 		
 		return $return;
 	}

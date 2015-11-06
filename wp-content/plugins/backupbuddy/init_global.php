@@ -1,4 +1,15 @@
 <?php // This code runs everywhere. pb_backupbuddy::$options preloaded.
+if ( defined( 'BACKUPBUDDY_DEV' ) && ( true === BACKUPBUDDY_DEV ) ) {
+	//pb_backupbuddy::load();
+	foreach( pb_backupbuddy::$options['remote_destinations'] as $destination ) { // See if we have Live activated.
+		if ( 'live' == $destination['type'] ) {
+			include( 'destinations/live/live.php' );
+			backupbuddy_live::init();
+			break;
+		}
+	}
+}
+
 
 include( 'classes/constants.php' );
 include( 'classes/api.php' );
@@ -33,7 +44,7 @@ pb_backupbuddy::add_action( array( 'pb_backupbuddy-cron_scheduled_backup', 'proc
 pb_backupbuddy::add_cron( 'process_backup', 10, 1 ); // Normal (manual) backup. Normal backups use cron system for scheduling each step when in modern mode. Classic mode skips this and runs all in one PHP process.
 pb_backupbuddy::add_cron( 'final_cleanup', 10, 1 ); // Cleanup after backup.
 pb_backupbuddy::add_cron( 'remote_send', 10, 5 ); // Manual remote destination sending.
-pb_backupbuddy::add_cron( 'destination_send', 10, 5 ); // Manual remote destination sending.
+pb_backupbuddy::add_cron( 'destination_send', 10, 6 ); // Manual remote destination sending.
 
 // Remote destination copying. Eventually combine into one function to pass to individual remote destination classes to process.
 pb_backupbuddy::add_cron( 'process_s3_copy', 10, 6 );
@@ -193,5 +204,50 @@ function backupbuddy_register_sync_verbs( $api ) {
 	}
 }
 add_action( 'ithemes_sync_register_verbs', 'backupbuddy_register_sync_verbs' );
+
+// Sync notices.
+function backupbuddy_sync_add_notices( $arguments, $urgent = false ) {
+	require_once( pb_backupbuddy::plugin_path() . '/classes/core.php' );
+	
+	$notifications = backupbuddy_core::getNotifications();
+	foreach( $notifications as &$notification ) {
+		// Skip if in the inapplicable mode.
+		if ( ( false === $urgent ) && ( true === $notification['urgent'] ) ) { // If NOT seeking urgents, skip urgents.
+			continue;
+		}
+		if ( ( true === $urgent ) && ( false === $notification['urgent'] ) ) { // If seeking urgents, skip non-urgents.
+			continue;
+		}
+		if ( true === $notification['syncSent'] ) { // Only send once.
+			continue;
+		}
+		
+		$notification['syncSent'] = true;
+		
+		// Compile data.
+		//$data = array();
+		$data = $notification['data'];
+		/*
+		if ( ! empty( $arguments['verbose'] ) ) { // The verbose argument can be checked for in order to provide additional information that may not always be necessary.
+			$data = $notification['data'];
+		}
+		*/
+		
+		
+		// Send notice.
+		if ( false === $urgent ) {
+			ithemes_sync_add_notice( 'backupbuddy', $notification['slug'], $notification['title'], $notification['message'], $data );
+		} elseif ( true === $urgent ) {
+			ithemes_sync_send_urgent_notice( 'backupbuddy', $notification['slug'], $notification['title'], $notification['message'], $data );
+		}
+	}
+	backupbuddy_core::replaceNotifications( $notifications ); // Save with syncSent updates for all notifications.
+	return true;
+}
+function backupbuddy_sync_send_urgent_notice( $arguments ) {
+	return backupbuddy_sync_add_notices( $arguments, $urgent = true );
+}
+add_action( 'ithemes_sync_add_notices', 'backupbuddy_sync_add_notices' );
+//add_action( 'init', 'backupbuddy_sync_send_urgent_notice' );
 
 

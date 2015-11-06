@@ -691,17 +691,21 @@ class backupbuddy_migrateDB {
 
 	function finalize() {
 		// LASTLY UPDATE SITE/HOME URLS to prevent double replacement; just in case!
-
-		// Update SITEURL in options table. Usually mass replacement will cover this but set these here just in case.
-		mysql_query( "UPDATE `" . $this->overridePrefix . "options` SET option_value='" . backupbuddy_core::dbEscape( $this->restoreData['siteurl'] ) . "' WHERE option_name='siteurl' LIMIT 1" );
-		pb_backupbuddy::status( 'details', 'Modified ' . mysql_affected_rows() . ' row(s) while updating Site URL in options table `' . $this->overridePrefix . 'options` to `' . $this->restoreData['siteurl'] . '`.' );
-		if ( mysql_error() != '' ) { pb_backupbuddy::status( 'error', 'mysql error: ' . mysql_error() ); }
-
-		// Update HOME URL in options table. Usually mass replacement will cover this but set these here just in case.
-		if ( $this->restoreData['homeurl'] != '' ) {
-			mysql_query( "UPDATE `" . $this->overridePrefix . "options` SET option_value='" . backupbuddy_core::dbEscape( $this->restoreData['homeurl'] ) . "' WHERE option_name='home' LIMIT 1" );
-			pb_backupbuddy::status( 'details', 'Modified ' . mysql_affected_rows() . ' row(s) while updating Home URL in options table to `' . $this->restoreData['homeurl'] . '`.' );
+		
+		if ( ! isset( $this->restoreData['dat']['tables_sizes'][ $this->restoreData['dat']['db_prefix'] . 'options' ] ) ) {
+			pb_backupbuddy::status( 'details', 'Options table was not backed up. Skipping finalizing database URLs for _options table.' );
+		} else {
+			// Update SITEURL in options table. Usually mass replacement will cover this but set these here just in case.
+			mysql_query( "UPDATE `" . $this->overridePrefix . "options` SET option_value='" . backupbuddy_core::dbEscape( $this->restoreData['siteurl'] ) . "' WHERE option_name='siteurl' LIMIT 1" );
+			pb_backupbuddy::status( 'details', 'Modified ' . mysql_affected_rows() . ' row(s) while updating Site URL in options table `' . $this->overridePrefix . 'options` to `' . $this->restoreData['siteurl'] . '`.' );
 			if ( mysql_error() != '' ) { pb_backupbuddy::status( 'error', 'mysql error: ' . mysql_error() ); }
+
+			// Update HOME URL in options table. Usually mass replacement will cover this but set these here just in case.
+			if ( $this->restoreData['homeurl'] != '' ) {
+				mysql_query( "UPDATE `" . $this->overridePrefix . "options` SET option_value='" . backupbuddy_core::dbEscape( $this->restoreData['homeurl'] ) . "' WHERE option_name='home' LIMIT 1" );
+				pb_backupbuddy::status( 'details', 'Modified ' . mysql_affected_rows() . ' row(s) while updating Home URL in options table to `' . $this->restoreData['homeurl'] . '`.' );
+				if ( mysql_error() != '' ) { pb_backupbuddy::status( 'error', 'mysql error: ' . mysql_error() ); }
+			}
 		}
 		
 		return true;
@@ -721,7 +725,15 @@ class backupbuddy_migrateDB {
 
 		//pb_backupbuddy::$classes['import']->connect_database();
 		$db_prefix = $this->overridePrefix;
-
+		
+		// If wp_options was not backed up then skip this function since it checks that.
+		if ( ! isset( $this->restoreData['dat']['tables_sizes'][ $this->restoreData['dat']['db_prefix'] . 'options' ] ) ) {
+			pb_backupbuddy::status( 'details', 'Options table was not backed up. Skipping verifying the database.' );
+			return true;
+		} else {
+			pb_backupbuddy::status( 'details', 'Options table was backed up. Verifying the database.' );
+		}
+		
 		// Check site URL.
 		$result = mysql_query( "SELECT option_value FROM `{$db_prefix}options` WHERE option_name='siteurl' LIMIT 1" );
 		if ( $result === false ) {

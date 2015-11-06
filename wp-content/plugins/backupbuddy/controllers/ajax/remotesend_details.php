@@ -21,15 +21,14 @@ if ( ! file_exists( $log_file ) ) {
 }
 
 // Display log.
-echo '<h3>Remote Send Log</h3>';
 echo '<textarea style="width: 100%; height: 80%;" wrap="off" readonly="readonly">';
 $lines = file_get_contents( $log_file );
 if ( false === $lines ) {
 	echo 'Error #849834: Unable to read log file `' . $log_file . '`.';
 } else {
 	$lines = explode( "\n", $lines );
-	foreach( (array)$lines as $line ) {
-		$line = json_decode( $line, true );
+	foreach( (array)$lines as $rawline ) {
+		$line = json_decode( $rawline, true );
 		//print_r( $line );
 		if ( is_array( $line ) ) {
 			$u = '';
@@ -41,10 +40,16 @@ if ( false === $lines ) {
 			echo $line['mem'] . "MB\t";
 			echo $line['event'] . "\t";
 			echo $line['data'] . "\n";
+		} else {
+			echo $rawline . "\n";
 		}
 	}
 }
-echo '</textarea>';
+echo '</textarea>
+<br><br>
+<small>Log file: ' . $log_file . '</small>
+<br>
+<small>Last modified: ' . pb_backupbuddy::$format->date( filemtime( $log_file ) ) . ' (' . pb_backupbuddy::$format->time_ago( filemtime( $log_file ) ) . ' ago)';
 
 pb_backupbuddy::$ui->ajax_footer();
 die();

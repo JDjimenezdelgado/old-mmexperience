@@ -12,7 +12,7 @@ if ( !wp_script_is( 'media-upload' ) ) {
 }
 
 require_once( pb_backupbuddy::plugin_path() . '/classes/backup.php' );
-pb_backupbuddy::$classes['backup'] = new pb_backupbuddy_backup();
+$newBackup = new pb_backupbuddy_backup();
 $serial_override = pb_backupbuddy::random_string( 10 ); // Set serial ahead of time so can be used by AJAX before backup procedure actually begins.
 
 // Deploy direction.
@@ -61,7 +61,7 @@ if ( pb_backupbuddy::_GET( 'backupbuddy_backup' ) == 'export' ) { // EXPORT.
 			die( 'Error #84537483: Invalid profile ID `' . htmlentities( $requested_profile ) . '`. Profile with this number was not found. Try deactivating then reactivating the plugin. If this fails please reset the plugin Settings back to Defaults from the Settings page.' );
 		}
 	} else {
-		die( 'Error #85489548955b. Invalid profile ID not numeric: `' . htmlentities( $requested_profile ) . '`. Did you refresh? You will need to go back and try again.' );
+		die( 'Error #85489548955b. You cannot refresh this page to re-run it to prevent accidents. You will need to go back and try again. (Invalid profile ID not numeric: `' . htmlentities( $requested_profile ) . '`).' );
 	}
 }
 
@@ -80,8 +80,14 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 	$profile_array['backup_nonwp_tables'] = '2';
 	$profile_array['profile_globaltables'] = '0';
 	$profile_array['profile_globalexcludes'] = '0';
-	$profile_array['mysqldump_additional_includes'] = implode( "\n", (array)pb_backupbuddy::_POST( 'tables' ) );
 	
+	$profile_array['mysqldump_additional_includes'] = implode( "\n", (array)pb_backupbuddy::_POST( 'tables' ) );
+	$tables = (array)pb_backupbuddy::_POST( 'tables' );
+	//array_walk( $tables, create_function('&$val', '$val = trim($val);'));
+	$tables = array_filter( $tables );
+	if ( 0 == count( $tables ) ) {
+		$profile_array['skip_database_dump'] = '1';
+	}
 }
 
 ?>
@@ -195,6 +201,12 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 		
 		jQuery('.bb_destinations-existing .bb_destination-item a').click( function(e){
 			e.preventDefault();
+			
+			if ( jQuery(this).parent().hasClass( 'bb_destination-item-disabled' ) ) {
+				alert( 'This remote destination is unavailable.  It is either disabled in its Advanced Settings or not compatible with this server.' );
+				return false;
+			}
+			
 			destinationID = jQuery(this).attr( 'rel' );
 			console.log( 'Send to destinationID: `' + destinationID + '`.' );
 			pb_backupbuddy_selectdestination( destinationID, jQuery(this).attr( 'title' ), jQuery('#pb_backupbuddy_archive_send').attr('rel'), jQuery('#pb_backupbuddy_remote_delete').is(':checked') );
@@ -278,7 +290,7 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 					function(data) {
 						data = jQuery.trim( data );
 						if ( data.charAt(0) != '1' ) {
-							alert( "<?php _e("Error confirming deployment.", 'it-l10n-backupbuddy' ); ?> Server responded: " + "\n\n" + '`' + data + '`.' );
+							alert( "<?php _e("Error confirming deployment.", 'it-l10n-backupbuddy' ); ?> Server responded: " + "\n\n" + '`' + data + '`.' + "\n\n" + 'Charcode at 0: `' + data.charCodeAt(0) + '`. Expected charcode: `' + ('1').charCodeAt(0) + '`.' );
 						} else { // hide confirm button.
 							backupbuddy_log( '*** Deployment changes confirmed by user.' );
 							confirmDeployButton.css( 'visibility', 'hidden' );
@@ -534,10 +546,15 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 					try {
 						var json = jQuery.parseJSON( data[i] );
 						isJSON = true;
-					} catch(e) {
+					} catch(e) { // NOT json.
 						if ( data[i].indexOf( 'Fatal PHP error' ) > -1 ) {
 							backupbuddyError( data[i], 'PHP Error' );
 							backupbuddy_log( 'Fatal PHP Error: ' + data[i] );
+						} else if ( data[i].indexOf( 'Error' ) > -1 ) {
+							backupbuddyError( data[i], 'Direct Error' );
+							backupbuddy_log( 'Error (direct): ' + data[i], 'error' );
+						} else if ( data[i].indexOf( 'Warning' ) > -1 ) {
+							backupbuddy_log( 'Warning (direct): ' + data[i], 'warning' );
 						} else {
 							<?php if ( pb_backupbuddy::$options['log_level'] == '3' ) { ?>
 								console.log( 'BackupBuddy non-json:' + data[i] );
@@ -580,7 +597,10 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 						} else if ( 'START_DEPLOY' == data[i] ) {
 							isInDeployLog = true;
 						} else if ( 'END_DEPLOY' == data[i] ) {
+							backupbuddy_log( '*** Ending remote log (if applicable)' );
 							isInDeployLog = false;
+						} else {
+							//backupbuddy_log( '~~~ (direct): ' + data[i] );
 						}
 					} else if ( 0 == json ) {
 						message = 'Error #9999383: Server responded with 0 which usually means your session has expired and you have been logged out or wp-ajax failed.';
@@ -710,15 +730,15 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 			rawMessage = message;
 		}
 		if ( 'undefined' === typeof title ) {
-			title = 'Error';
+			title = 'Alert';
 		}
 		
 		//getErrorInfo( error_number );
 		
 		if ( '' !== troubleURL ) {
-			errorHelp( '<a href="' + troubleURL + '" target="_blank">' + title + '</a>', rawMessage + ' <a href="' + troubleURL + '" target="_blank">Click to <b>view error details</b> in the Knowledge Base</a>' );
+			errorHelp( 'Alert', '<a href="' + troubleURL + '" target="_blank">' + title + '</a>', rawMessage + ' <a href="' + troubleURL + '" target="_blank">Click to <b>view error details</b> in the Knowledge Base</a>' );
 		} else {
-			errorHelp( '<h3>' + title + '</h3>', rawMessage );
+			errorHelp( title, rawMessage );
 		}
 		
 		// Display error box to make it clear errors were encountered.
@@ -805,15 +825,7 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 	<div class="bb_progress-bar clearfix">
 		<div class="bb_progress-step bb_progress-step-deploySnapshot bb_progress-step-active">
 			<div class="bb_progress-step-icon"></div>
-			<div class="bb_progress-step-title"><?php
-				if ( 'push' == $direction ) {
-					_e( 'Taking Local Snapshot', 'it-l10n-backupbuddy' );
-				} elseif ( 'pull' == $direction ) {
-					_e( 'Taking Remote Snapshot', 'it-l10n-backupbuddy' );
-				} else {
-					echo '{Error#438478494:Unknown direction.}';
-				}
-			?></div>
+			<div class="bb_progress-step-title"><?php _e( 'Creating Snapshot', 'it-l10n-backupbuddy' ); ?></div>
 			<span class="bb_progress-loading"></span>
 		</div>
 		<div class="bb_progress-step bb_progress-step-deployTransfer">
@@ -831,15 +843,7 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 		</div>
 		<div class="bb_progress-step bb_progress-step-deployRestore">
 			<div class="bb_progress-step-icon"></div>
-			<div class="bb_progress-step-title"><?php
-				if ( 'push' == $direction ) {
-					_e( 'Deploying Pushed Data', 'it-l10n-backupbuddy' );
-				} elseif ( 'pull' == $direction ) {
-					_e( 'Deploying Pulled Data', 'it-l10n-backupbuddy' );
-				} else {
-					echo '{Error#43545432:Unknown direction.}';
-				}
-			?></div>
+			<div class="bb_progress-step-title"><?php _e( 'Deploying Data', 'it-l10n-backupbuddy' ); ?></div>
 			<span class="bb_progress-loading"></span>
 		</div>
 		<div class="bb_progress-step bb_progress-step-unfinished">
@@ -874,7 +878,15 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 	<div class="bb_actions bb_actions_after-deploy slidedown" style="display: none;">
 		<a class="btn btn-with-icon btn-white btn-back" href="<?php echo pb_backupbuddy::page_url(); ?>">Back to backups<span class="btn-icon"></span></a>
 		<a class="btn btn-with-icon btn-white btn-cancel pb_backupbuddy_deployUndo" href="" target="_blank" style="display: none;"><span class="btn-icon"></span> Undo Destination Database Changes</a>
-		<a class="btn btn-with-icon btn-visit" href="<?php echo $deployData['destination']['siteurl']; ?>" target="_blank"><span class="btn-icon"></span> Visit Deployed Site</a>
+		<?php
+		if ( 'push' == $direction ) {
+			$destinationURL = $deployData['destination']['siteurl'];
+		} elseif ( 'pull' == $direction ) {
+			$destinationURL = site_url(); //$deployData['remoteInfo']['siteurl'];
+		} else {
+			$destinationURL = '#UNKNOWN_DESTINATION_TYPE';
+		} ?>
+		<a class="btn btn-with-icon btn-visit" href="<?php echo $destinationURL; ?>" target="_blank"><span class="btn-icon"></span> Visit Deployed Site</a>
 		<a class="btn btn-with-icon btn-confirm btn-confirm-deploy" href="javascript:void(0);" target="_blank"><span class="btn-icon" style="font-size: 1.5em; top: 24%; color: #8CFF9B;"></span>Confirm Changes</a>
 	</div>
 <?php } ?>
@@ -909,7 +921,12 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 							continue;
 						}
 						
-						echo '<li class="bb_destination-item bb_destination-' . $destination['type'] . '"><a href="javascript:void(0)" title="' . $destination['title'] . '" rel="' . $destination_id . '">' . $destination['title'] . '</a></li>';
+						$disabledClass= '';
+						if ( isset( $destination['disabled'] ) && ( '1' == $destination['disabled'] ) ) {
+							$disabledClass = 'bb_destination-item-disabled';
+						}
+						
+						echo '<li class="bb_destination-item bb_destination-' . $destination['type'] . ' ' . $disabledClass . '"><a href="javascript:void(0)" title="' . $destination['title'] . '" rel="' . $destination_id . '">' . $destination['title'] . '</a></li>';
 					}
 					?>
 					<br><br>
@@ -1071,11 +1088,17 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 				<span class="backup-step-status"></span>
 			</div>
 			<div class="backup-step backup-step-secondary" style="display: none;" id="backup-function-deploy_runningImportBuddy-secondary">
-				<iframe id="backupbuddy_deploy_runningImportBuddy" src="" width="100%" height="60" frameBorder="0">Error #4584594579. Browser not compatible with iframes.</iframe>
+				<iframe id="backupbuddy_deploy_runningImportBuddy" src="" width="100%" height="30" frameBorder="0">Error #4584594579. Browser not compatible with iframes.</iframe>
 			</div>
 		<?php } ?>
 		<div class="backup-step" id="backup-function-<?php if ( 'deploy' != pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) { echo 'backup_success'; } else { echo 'deploy_success'; } ?>">
-			<span class="backup-step-title"><?php if ( 'deploy' != pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) { _e( 'Backup completed successfully', 'it-l10n-backupbuddy' ); } else { _e( 'Deployment completed successfully', 'it-l10n-backupbuddy' ); } ?></span>
+			<span class="backup-step-title"><?php
+				if ( 'deploy' != pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
+					_e( 'Backup completed successfully', 'it-l10n-backupbuddy' );
+				} else {
+					_e( 'Deployment completed successfully. Click the "Confirm Changes" button once satisfied.', 'it-l10n-backupbuddy' );
+				}
+			?></span>
 			<span class="backup-step-status"></span>
 			<div class="backup-step-error-message" style="display: none;" id="backupbuddy_errors_notice">
 				<h3>Some errors may have been encountered</h3>
@@ -1205,6 +1228,47 @@ if ( 'deploy' == pb_backupbuddy::_GET( 'backupbuddy_backup' ) ) {
 		$deployData['sendTheme'] = false;
 	}
 	
+		if ( 'true' == pb_backupbuddy::_POST( 'sendChildTheme' ) ) {
+		$deployData['sendChildTheme'] = true;
+	} else {
+		$deployData['sendChildTheme'] = false;
+	}
+	
+	
+	
+	// Calculate plugin root directories we want to transfer.
+	$sendPlugins = pb_backupbuddy::_POST( 'sendPlugins' );
+	if ( ! is_array( $sendPlugins ) ) {
+		$sendPlugins = array();
+	}
+	$sendPluginDirs = array();
+	foreach( $sendPlugins as $sendPluginFile => $sendPlugin ) {
+		//echo $sendPluginFile . ' => ' . $sendPlugin . '<br>';
+		$sendPluginDirs[] = dirname( '/' . $sendPlugin );
+		//$sendPluginFileLen = strlen( $sendPluginFile );
+	}
+	
+	// Remove any unselected plugins from the plugin files to transfer.
+	if ( 'push' == pb_backupbuddy::_GET( 'direction' ) ) {
+		foreach( $deployData['pushPluginFiles'] as $i => $pushPluginFile ) { // For each pushPluginFile make sure 
+			$firstDirSlash = strpos( str_replace( '\\', '/', $pushPluginFile ), '/', 1 );
+			$thisDir = substr( $pushPluginFile, 0, $firstDirSlash );
+			if ( ! in_array( $thisDir, $sendPluginDirs ) ) { // File is in directory we are not sending. Unset.
+				unset( $deployData['pushPluginFiles'][ $i ] );
+			}
+		}
+	} elseif ( 'pull' == pb_backupbuddy::_GET( 'direction' ) ) {
+		foreach( $deployData['pullPluginFiles'] as $i => $pullPluginFile ) { // For each pushPluginFile make sure 
+			$firstDirSlash = strpos( str_replace( '\\', '/', $pullPluginFile ), '/', 1 );
+			$thisDir = substr( $pullPluginFile, 0, $firstDirSlash );
+			if ( ! in_array( $thisDir, $sendPluginDirs ) ) { // File is in directory we are not sending. Unset.
+				unset( $deployData['pullPluginFiles'][ $i ] );
+			}
+		}
+	}
+	
+	
+	
 	if ( 'true' == pb_backupbuddy::_POST( 'sendPlugins' ) ) {
 		$deployData['sendPlugins'] = true;
 	} else {
@@ -1262,7 +1326,7 @@ pb_backupbuddy::load_script( 'backupPerform.js' );
 
 // Run the backup!
 pb_backupbuddy::flush(); // Flush any buffer to screen just before the backup begins.
-if ( pb_backupbuddy::$classes['backup']->start_backup_process(
+if ( $newBackup->start_backup_process(
 		$profile_array,											// Profile array.
 		$trigger,												// Backup trigger. manual, scheduled
 		array(),												// pre-backup array of steps.

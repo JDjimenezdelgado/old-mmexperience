@@ -107,6 +107,26 @@ $settings_form->add_setting( array(
 	'after'		=>		'<span class="description"> ' . __( 'Check to run BackupBuddy in English. This is useful for support.', 'it-l10n-backupbuddy' ) . '</span>',
 	'rules'		=>		'required',
 ) );
+$settings_form->add_setting( array(
+	'type'		=>		'checkbox',
+	'name'		=>		'remote_send_timeout_retries',
+	'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+	'title'		=>		__( 'Retry timed out remote sends', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__( '[Default: Checked] When checked BackupBuddy will attempt ONCE at resending a timed out remote destination send.', 'it-l10n-backupbuddy' ),
+	'css'		=>		'',
+	'after'		=>		'<span class="description"> ' . __( 'Check to re-attempt timed out sends once.', 'it-l10n-backupbuddy' ) . '</span>',
+	'rules'		=>		'required',
+) );
+$settings_form->add_setting( array(
+	'type'		=>		'checkbox',
+	'name'		=>		'set_greedy_execution_time',
+	'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+	'title'		=>		__( 'Attempt to override PHP max execution time', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__( '[Default: Unchecked] When checked BackupBuddy will attempt to override the default PHP maximum execution time to 7200 seconds.  Note that almost all shared hosting providers block this attempt.', 'it-l10n-backupbuddy' ),
+	'css'		=>		'',
+	'after'		=>		'<span class="description"> ' . __( 'Check to force execution time override attempt (most hosts block this).', 'it-l10n-backupbuddy' ) . '</span>',
+	'rules'		=>		'required',
+) );
 
 
 
@@ -131,6 +151,16 @@ $settings_form->add_setting( array(
 								'3'		=>		__( 'Everything (troubleshooting mode)', 'it-l10n-backupbuddy' ),
 							),
 	'tip'		=>		sprintf( __('[Default: Errors Only] - This option controls how much activity is logged for records or troubleshooting. Logs may be viewed from the Logs / Other tab on the Settings page. Additionally when in Everything / Troubleshooting mode error emails will contain encrypted troubleshooting data for support. Log file: %s', 'it-l10n-backupbuddy' ), $log_file ),
+	'rules'		=>		'required',
+) );
+$settings_form->add_setting( array(
+	'type'		=>		'checkbox',
+	'name'		=>		'save_backup_sum_log',
+	'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+	'title'		=>		__( 'Temporarily save full backup status logs', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__( '[Default: Checked] When checked BackupBuddy will temporarily (~10 days) save the complete full backup status log, regardless of the Logging Level setting.  This is useful for troubleshooting passed backups. View logs by hovering a backup on the Backups page and clicking "View Log".', 'it-l10n-backupbuddy' ),
+	'css'		=>		'',
+	'after'		=>		'<span class="description"> ' . __( 'Temporarily save full backup status logs.', 'it-l10n-backupbuddy' ) . '</span>',
 	'rules'		=>		'required',
 ) );
 $settings_form->add_setting( array(
@@ -161,6 +191,15 @@ $settings_form->add_setting( array(
 	'css'		=>		'width: 50px;',
 	'rules'		=>		'required|int[1-25]',
 	'after'		=>		' sends',
+) );
+$settings_form->add_setting( array(
+	'type'		=>		'text',
+	'name'		=>		'max_notifications_age_days',
+	'title'		=>		__('Maximum days to keep recent activity', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__('[Default: 21 days] - Number of days to store recent activity notifications / audits.' ),
+	'rules'		=>		'required|int',
+	'css'		=>		'width: 50px;',
+	'after'		=>		' days',
 ) );
 
 

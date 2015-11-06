@@ -3,8 +3,8 @@ if ( ! defined( 'PB_IMPORTBUDDY' ) || ( true !== PB_IMPORTBUDDY ) ) {
 	die( '<html></html>' );
 }
 Auth::require_authentication(); // Die if not logged in.
-pb_backupbuddy::set_greedy_script_limits( true );
 pb_backupbuddy::load_view( '_iframe_header');
+pb_backupbuddy::set_greedy_script_limits();
 echo "<script>pageTitle( 'Step 5: Migrating Database' );</script>";
 pb_backupbuddy::status( 'details', 'Loading step 5.' );
 echo "<script>bb_showStep( 'migratingDatabase' );</script>";
@@ -123,6 +123,8 @@ if ( 'true' == pb_backupbuddy::_GET( 'deploy' ) ) {
 		finalActions( $restore );
 		$nextStepNum = 6;
 		echo '<!-- AUTOPROCEED TO STEP ' . $nextStepNum . ' -->';
+	} else {
+		pb_backupbuddy::status( 'details', 'Deploy mode but SQL files imported (`' . count( $restore->_state['databaseSettings']['sqlFiles'] ) . '` total) so not skipping database migration step.' );
 	}
 }
 
@@ -152,13 +154,17 @@ if ( TRUE !== $restore->_state['databaseSettings']['migrateDatabase'] ) {
 		if ( is_array( $migrateResults ) ) { // Return to same step for continuing chunking.
 			$nextStepNum = 5;
 		} else {
-			
-			if ( true !== $restore->swapDatabaseBBSettings() ) {
-				pb_backupbuddy::status( 'error', 'Error #3292373: Unable to swap out BackupBuddy settings..' );
-				pb_backupbuddy::status( 'haltScript', '' ); // Halt JS on page.
-				return;
+			error_log( 'STATE: ' . print_r( $restore->_state, true ) );
+			// Don't attempt to swap out backupbuddy settings from options table if options table wasn't pulled.
+			if ( isset( $restore->_state['dat']['tables_sizes'] ) && ( ! isset( $restore->_state['dat']['tables_sizes'][ $restore->_state['dat']['db_prefix'] . 'options' ] ) ) ) {
+				pb_backupbuddy::status( 'details', 'Options table was not backed up. Skipping swap out of BackupBuddy settings.' );
 			} else {
-				pb_backupbuddy::status( 'details', 'Finished swapping BackupBuddy settings.' );
+				pb_backupbuddy::status( 'details', 'Options table was backed up. Swapping out of BackupBuddy settings.' );
+				if ( true !== $restore->swapDatabaseBBSettings() ) {
+					pb_backupbuddy::status( 'error', 'Error #3292373: Unable to swap out BackupBuddy settings. This may not be a fatal error.' );
+				} else {
+					pb_backupbuddy::status( 'details', 'Finished swapping BackupBuddy settings.' );
+				}
 			}
 			
 			// Swap out new and old database prefixes.

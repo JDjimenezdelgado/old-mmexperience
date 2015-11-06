@@ -208,17 +208,6 @@ echo '<br><br>';
 
 
 
-echo '<br><br><br><br><br><br><br><br><br><br><br>';
-echo '<small>';
-if ( pb_backupbuddy::$options['importbuddy_pass_hash'] == '' ) {
-	echo '<a class="description" onclick="alert(\'' . __( 'Please set a RepairBuddy password on the BackupBuddy Settings page to download this script. This is required to prevent unauthorized access to the script when in use.', 'it-l10n-backupbuddy' ) . '\'); return false;" href="" style="text-decoration: none;" title="' . __( 'Download the troubleshooting & repair script, repairbuddy.php', 'it-l10n-backupbuddy' ) . '">';
-} else {
-	echo '<a class="description" href="' . admin_url( 'admin-ajax.php' ) . '?action=pb_backupbuddy_backupbuddy&function=repairbuddy" style="text-decoration: none;" title="' . __('Download the troubleshooting & repair script, repairbuddy.php', 'it-l10n-backupbuddy' ) . '">';
-}
-echo __( 'Download RepairBuddy troubleshooting & repair tool.', 'it-l10n-backupbuddy' ) . '</a>';
-echo '</small>';
-
-
 
 // Handles thickbox auto-resizing. Keep at bottom of page to avoid issues.
 if ( !wp_script_is( 'media-upload' ) ) {

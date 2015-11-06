@@ -37,6 +37,7 @@ global $wp_query;
 	<![endif]-->
 
 	<?php wp_head(); ?>
+	<meta name="google-site-verification" content="B97iopk7FXFll-jZXcNcU5X73DEdUYi3qNTdkGUW-CE" />
 
 </head>
 

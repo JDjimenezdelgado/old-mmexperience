@@ -29,10 +29,10 @@ $rows = $wpdb->get_results( "SHOW TABLE STATUS", ARRAY_A );
 foreach( $rows as $row ) {
 	
 	// Hide BackupBuddy temp tables.
-	if ( 'BBold-' == substr( $row['Name'], 0, 6 ) ) {
+	if ( 'bbold-' == substr( $row['Name'], 0, 6 ) ) {
 		continue;
 	}
-	if ( 'BBnew-' == substr( $row['Name'], 0, 6 ) ) {
+	if ( 'bbnew-' == substr( $row['Name'], 0, 6 ) ) {
 		continue;
 	}
 	
@@ -41,57 +41,6 @@ foreach( $rows as $row ) {
 
 
 
-// search backwards starting from haystack length characters from the end
-function backupbuddy_startsWith($haystack, $needle) {
-	return $needle === "" || strrpos($haystack, $needle, -strlen($haystack)) !== FALSE;
-} // End backupbuddy_startsWith().
-
-
-
-/* backupbuddy_hashGlob()
- *
- * Calculate comparison data for all files within a path. Useful for tracking file changes between two locations.
- *
- */
-function backupbuddy_hashGlob( $root, $generate_sha1 = false, $excludes = array() ) {
-	
-	//$root = rtrim( $root, '/\\' );
-	$files = (array) pb_backupbuddy::$filesystem->deepglob( $root );
-	$root_len = strlen( $root );
-	$hashedFiles = array();
-	foreach( $files as $file_id => &$file ) {
-		$new_file = substr( $file, $root_len );
-		
-		// If this file/directory begins with an exclusion then jump to next file/directory.
-		foreach( $excludes as $exclude ) {
-			if ( backupbuddy_startsWith( $new_file, $exclude ) ) {
-				continue 2;
-			}
-		}
-		
-		// Omit directories themselves.
-		if ( is_dir( $file ) ) {
-			continue;
-		}
-		
-		$stat = stat( $file );
-		if ( FALSE === $stat ) { pb_backupbuddy::status( 'error', 'Unable to read file `' . $file . '` stat.' ); }
-		
-		$hashedFiles[$new_file] = array(
-			'size'		=> $stat['size'],
-			'modified'	=> $stat['mtime'],
-		);
-		if ( ( true === $generate_sha1 ) && ( $stat['size'] < 1073741824 ) ) { // < 100mb
-			$hashedFiles[$new_file]['sha1'] = sha1_file( $file );
-		}
-		unset( $files[$file_id] ); // Better to free memory or leave out for performance?
-		
-	}
-	unset( $files );
-	
-	return $hashedFiles;
-	
-} // End backupbuddy_hashGlob.
 
 
 
@@ -149,15 +98,22 @@ $inactivePluginDirs = array_diff( $allPluginDirs, $activePluginDirs ); // Remove
 $inactivePluginDirs[] = pb_backupbuddy::plugin_path(); // Also exclude BackupBuddy directory.
 
 
-
+// Calculate media files signatures.
 $upload_dir = wp_upload_dir();
 $mediaExcludes = array(
 	'/backupbuddy_backups',
 	'/pb_backupbuddy',
 	'/backupbuddy_temp',
 );
-$mediaSignatures = backupbuddy_hashGlob( $upload_dir['basedir'], $sha1, $mediaExcludes );
+$mediaSignatures = backupbuddy_core::hashGlob( $upload_dir['basedir'], $sha1, $mediaExcludes );
 
+
+// Calculate child theme file signatures, excluding main theme directory..
+if ( get_stylesheet_directory() == get_template_directory() ) { // Theme & childtheme are same so do not send any childtheme files!
+	$childThemeSignatures = array();
+} else {
+	$childThemeSignatures = backupbuddy_core::hashGlob( get_stylesheet_directory(), $sha1 );
+}
 
 
 global $wp_version;
@@ -178,8 +134,10 @@ return array(
 	'dbPrefix'					=> $wpdb->prefix,
 	'activePlugins'				=> $activePlugins,
 	'activeTheme'				=> get_template(),
-	'themeSignatures'			=> backupbuddy_hashGlob( get_template_directory(), $sha1 ),
-	'pluginSignatures'			=> backupbuddy_hashGlob( WP_PLUGIN_DIR . '/', $sha1, $inactivePluginDirs ),
+	'activeChildTheme'			=> get_stylesheet(),
+	'themeSignatures'			=> backupbuddy_core::hashGlob( get_template_directory(), $sha1 ),
+	'childThemeSignatures'		=> $childThemeSignatures,
+	'pluginSignatures'			=> backupbuddy_core::hashGlob( WP_PLUGIN_DIR, $sha1, $inactivePluginDirs ),
 	'mediaSignatures'			=> $mediaSignatures,
 	'mediaCount'				=> count( $mediaSignatures ),
 	'notifications'				=> array(), // Array of string notification messages.

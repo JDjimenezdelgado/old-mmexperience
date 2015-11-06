@@ -3,8 +3,8 @@ if ( ! defined( 'PB_IMPORTBUDDY' ) || ( true !== PB_IMPORTBUDDY ) ) {
 	die( '<html></html>' );
 }
 Auth::require_authentication(); // Die if not logged in.
-pb_backupbuddy::set_greedy_script_limits( true );
 pb_backupbuddy::load_view( '_iframe_header');
+pb_backupbuddy::set_greedy_script_limits();
 echo "<script>pageTitle( 'Step 4: Restoring Database' );</script>";
 pb_backupbuddy::status( 'details', 'Loading step 4.' );
 pb_backupbuddy::flush();
@@ -73,7 +73,7 @@ if ( false === $restore->_state['restoreDatabase'] ) {
 	if ( 'true' == pb_backupbuddy::_GET( 'deploy' ) ) {
 		// Drop any previous incomplete deployment / rollback tables.
 		pb_backupbuddy::status( 'details', 'Dropping any existing temporary deployment or rollback tables.' );
-		if ( false !== ( $results = mysql_query( "SELECT table_name FROM information_schema.tables WHERE ( ( table_name LIKE 'BBnew-\_%' ) OR ( table_name LIKE 'BBold-\_%' ) ) AND table_schema = DATABASE()" ) ) ) {
+		if ( false !== ( $results = mysql_query( "SELECT table_name FROM information_schema.tables WHERE ( ( table_name LIKE 'bbnew-\_%' ) OR ( table_name LIKE 'bbold-\_%' ) ) AND table_schema = DATABASE()" ) ) ) {
 			while( $result = mysql_fetch_row( $results ) ) {
 				if ( false === mysql_query( "DROP TABLE `" . mysql_real_escape_string( $result[0] ) . "`") ) {
 					pb_backupbuddy::status( 'details', 'Error #8493984: Unable to drop temp rollback/deploy table `' . $result['table_name'] . '`.' );
@@ -81,7 +81,7 @@ if ( false === $restore->_state['restoreDatabase'] ) {
 			}
 		}
 		
-		$restore->_state['databaseSettings']['tempPrefix'] = 'BBnew-' . substr( $restore->_state['serial'], 0, 4 ) . '_' . $restore->_state['databaseSettings']['prefix'];
+		$restore->_state['databaseSettings']['tempPrefix'] = 'bbnew-' . substr( $restore->_state['serial'], 0, 4 ) . '_' . $restore->_state['databaseSettings']['prefix'];
 	}
 	
 	

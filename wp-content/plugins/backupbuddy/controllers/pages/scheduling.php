@@ -60,6 +60,27 @@ if ( pb_backupbuddy::_GET( 'run' ) != '' ) {
 }
 
 
+function bb_build_remote_destinations( $destinations_list ) {
+	$remote_destinations = explode( '|', $destinations_list );
+	$remote_destinations_html = '';
+	foreach( $remote_destinations as $destination ) {
+		if ( isset( $destination ) && ( $destination != '' ) ) {
+			$remote_destinations_html .= '<li id="pb_remotedestination_' . $destination . '">';
+			
+			if ( ! isset( pb_backupbuddy::$options['remote_destinations'][$destination] ) ) {
+				$remote_destinations_html .= '{destination no longer exists}';
+			} else {
+				$remote_destinations_html .= pb_backupbuddy::$options['remote_destinations'][$destination]['title'];
+				$remote_destinations_html .= ' (' . backupbuddy_core::pretty_destination_type( pb_backupbuddy::$options['remote_destinations'][$destination]['type'] ) . ') ';
+			}
+			$remote_destinations_html .= '<img class="pb_remotedestionation_delete" src="' . pb_backupbuddy::plugin_url() . '/images/redminus.png" style="vertical-align: -3px; cursor: pointer;" title="' . __( 'Remove remote destination from this schedule.', 'it-l10n-backupbuddy' ) . '" />';
+			$remote_destinations_html .= '</li>';
+		}
+	}
+	$remote_destinations = '<ul id="pb_backupbuddy_remotedestinations_list">' . $remote_destinations_html . '</ul>';
+	return $remote_destinations;
+}
+
 // Edit existing schedule.
 if ( pb_backupbuddy::_GET( 'edit' ) != '' ) {
 	$mode = 'edit';
@@ -73,18 +94,12 @@ if ( pb_backupbuddy::_GET( 'edit' ) != '' ) {
 	
 	$first_run_value = date('m/d/Y h:i a', $next_run + ( get_option( 'gmt_offset' ) * 3600 ) ); // pb_backupbuddy::$options['schedules'][pb_backupbuddy::_GET( 'edit' )]['first_run']
 	
-	$remote_destinations = explode( '|', pb_backupbuddy::$options['schedules'][pb_backupbuddy::_GET( 'edit' )]['remote_destinations'] );
-	$remote_destinations_html = '';
-	foreach( $remote_destinations as $destination ) {
-		if ( isset( $destination ) && ( $destination != '' ) ) {
-			$remote_destinations_html .= '<li id="pb_remotedestination_' . $destination . '">';
-			$remote_destinations_html .= pb_backupbuddy::$options['remote_destinations'][$destination]['title'];
-			$remote_destinations_html .= ' (' . backupbuddy_core::pretty_destination_type( pb_backupbuddy::$options['remote_destinations'][$destination]['type'] ) . ') ';
-			$remote_destinations_html .= '<img class="pb_remotedestionation_delete" src="' . pb_backupbuddy::plugin_url() . '/images/redminus.png" style="vertical-align: -3px; cursor: pointer;" title="' . __( 'Remove remote destination from this schedule.', 'it-l10n-backupbuddy' ) . '" />';
-			$remote_destinations_html .= '</li>';
-		}
+	if ( '' != pb_backupbuddy::_POST( 'pb_backupbuddy_remote_destinations' ) ) {
+		$destination_list = pb_backupbuddy::_POST( 'pb_backupbuddy_remote_destinations' );
+	} else {
+		$destination_list = pb_backupbuddy::$options['schedules'][pb_backupbuddy::_GET( 'edit' )]['remote_destinations'];
 	}
-	$remote_destinations = '<ul id="pb_backupbuddy_remotedestinations_list">' . $remote_destinations_html . '</ul>';
+	$remote_destinations = bb_build_remote_destinations( $destination_list );
 } else {
 	$mode = 'add';
 	$data['mode_title'] = __('Add New Schedule', 'it-l10n-backupbuddy' );
@@ -267,6 +282,9 @@ if ( ( $submitted_schedule != '' ) && ( count ( $submitted_schedule['errors'] ) 
 		}
 		pb_backupbuddy::save();
 		//pb_backupbuddy::alert( 'Edited schedule `' . htmlentities( $submitted_schedule['data']['title'] ) . '`.' );
+		
+		$editedSchedule = $submitted_schedule['data'];
+		backupbuddy_core::addNotification( 'schedule_updated', 'Backup schedule updated', 'An existing schedule "' . $editedSchedule['title'] . '" has been updated.', $editedSchedule );
 	}
 	
 } elseif ( count ( $submitted_schedule['errors'] ) > 0 ) {
@@ -288,7 +306,7 @@ foreach ( pb_backupbuddy::$options['schedules'] as $schedule_id => $schedule ) {
 	
 	$profile = pb_backupbuddy::$options['profiles'][ (int)$schedule['profile'] ];
 	
-	$title = $schedule['title'];
+	$title = esc_html( $schedule['title'] );
 	if ( $profile['type'] == 'full' ) {
 		$type = 'Full';
 	} elseif ( $profile['type'] == 'files' ) {
@@ -311,7 +329,12 @@ foreach ( pb_backupbuddy::$options['schedules'] as $schedule_id => $schedule ) {
 	$destination_array = array();
 	foreach( $destinations as &$destination ) {
 		if ( isset( $destination ) && ( $destination != '' ) ) {
-			$destination_array[] = pb_backupbuddy::$options['remote_destinations'][$destination]['title'] . ' (' . backupbuddy_core::pretty_destination_type( pb_backupbuddy::$options['remote_destinations'][$destination]['type'] ) . ')';
+			if ( ! isset( pb_backupbuddy::$options['remote_destinations'][$destination] ) ) {
+				pb_backupbuddy::alert( 'The schedule `' . $title . '` is set to send to a remote destination which no longer exists. Please edit it and remove the invalid destination.' );
+				$destination_array[] = '{destination no longer exists}';
+			} else {
+				$destination_array[] = pb_backupbuddy::$options['remote_destinations'][$destination]['title'] . ' [' . backupbuddy_core::pretty_destination_type( pb_backupbuddy::$options['remote_destinations'][$destination]['type'] ) . ']';
+			}
 		}
 	}
 	

@@ -15,10 +15,6 @@ class pb_backupbuddy_backup {
 	private $_status_logging_started = false;				// Marked true once anything has been status logged during this process. Used by status().
 	private $_currentStepIndex = '';						// When running a backup, this is the current index in the steps array within the fileoptions.
 	
-	// PHP date() timestamp format for the backup archive filename. DATE is default.
-	const ARCHIVE_NAME_FORMAT_DATE = 'Y_m_d';				// Format when archive_name_format = date.
-	const ARCHIVE_NAME_FORMAT_DATETIME = 'Y_m_d-h_ia';		// Format when archive_name_format = datetime.
-	
 	// Constants for Zip Build Strategy - here for now but will be moved to central file
 	const ZIP_BUILD_STRATEGY_SBSS = 2;						// Single-Burst/Single-Step
 	const ZIP_BUILD_STRATEGY_MBSS = 3;						// Muti-Burst/Single-Step
@@ -109,27 +105,7 @@ class pb_backupbuddy_backup {
 	
 	
 	
-	/* calculateArchiveFilename()
-	 *
-	 * description
-	 *
-	 */
-	public function calculateArchiveFilename( $serial, $type ) {
-		
-		// Prepare some values for setting up the backup data.
-		$siteurl_stripped = backupbuddy_core::backup_prefix();
-		
-		// Calculate customizable section of archive filename (date vs date+time).
-		if ( pb_backupbuddy::$options['archive_name_format'] == 'datetime' ) { // "datetime" = Date + time.
-			$backupfile_datetime = date( self::ARCHIVE_NAME_FORMAT_DATETIME, pb_backupbuddy::$format->localize_time( time() ) );
-		} else { // "date" = date only (the default).
-			$backupfile_datetime = date( self::ARCHIVE_NAME_FORMAT_DATE, pb_backupbuddy::$format->localize_time( time() ) );
-		}
-		$archiveFile = backupbuddy_core::getBackupDirectory() . 'backup-' . $siteurl_stripped . '-' . $backupfile_datetime . '-' . $type . '-' . $serial . '.zip';
-		
-		pb_backupbuddy::status( 'details', 'Calculated archive file: `' . $archiveFile . '`.' );
-		return $archiveFile;
-	} // End calculateArchiveFilename().
+	
 	
 	
 	
@@ -190,7 +166,7 @@ class pb_backupbuddy_backup {
 		$type = $profile['type'];
 		
 		
-		$archiveFile = $this->calculateArchiveFilename( $serial, $type );
+		$archiveFile = backupbuddy_core::calculateArchiveFilename( $serial, $type );
 		
 		
 		//if ( 'pull' != $deployDirection ) {
@@ -343,7 +319,7 @@ class pb_backupbuddy_backup {
 		// Cleanup internal stats. Deployments should not impact stats.
 		if ( '' == $deployDirection ) {
 			pb_backupbuddy::status( 'details', 'Updating statistics for last backup start.' );
-			pb_backupbuddy::$options['last_backup_start'] = time(); // Reset time since last backup.
+			pb_backupbuddy::$options['last_backup_start'] = microtime(true); // Reset time since last backup.
 			pb_backupbuddy::$options['last_backup_serial'] = $serial;
 			pb_backupbuddy::save();
 		}
@@ -351,7 +327,7 @@ class pb_backupbuddy_backup {
 		
 		// Output active plugins list for debugging...
 		$activePlugins = get_option( 'active_plugins' );
-		pb_backupbuddy::status( 'details', 'Active WordPress plugins: `' . implode( '; ', $activePlugins ) . '`.' );
+		pb_backupbuddy::status( 'details', 'Active WordPress plugins (' . count( $activePlugins ) . '): `' . implode( '; ', $activePlugins ) . '`.' );
 		pb_backupbuddy::status( 'startSubFunction', json_encode( array( 'function' => 'wp_plugins_found', 'title' => 'Found ' . count( $activePlugins ) . ' active WordPress plugins.' ) ) );
 		unset( $activePlugins );
 		
@@ -765,7 +741,7 @@ class pb_backupbuddy_backup {
 		
 		// Assign reference to backup data structure for this backup.
 		if ( ! isset( $this->_backup_options ) ) {
-			pb_backupbuddy::status( 'details', 'About to load fileoptions data.' );
+			pb_backupbuddy::status( 'details', 'About to load fileoptions data for serial `' . $serial . '`.' );
 			$attempt_transient_prefix = 'pb_backupbuddy_lock_attempts-';
 			require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
 			pb_backupbuddy::status( 'details', 'Fileoptions instance #39.' );
@@ -806,6 +782,11 @@ class pb_backupbuddy_backup {
 			$this->_backup = &$this->_backup_options->options;
 		}
 		
+		if ( '-1' == $this->_backup_options->options['finish_time'] ) {
+			pb_backupbuddy::status( 'details', 'Warning #8328332: This backup is marked as cancelled. Halting.' );
+			return false;
+		}
+		
 		if ( $this->_backup_options->options['profile']['backup_mode'] != '1' ) { // Only check for cronPass action if in modern mode.
 			pb_backupbuddy::status( 'finishAction', 'cronPass' );
 		}
@@ -813,7 +794,7 @@ class pb_backupbuddy_backup {
 		// Handle cancelled backups (stop button).
 		if ( true == get_transient( 'pb_backupbuddy_stop_backup-' . $serial ) ) { // Backup flagged for stoppage. Proceed directly to cleanup.
 			
-			pb_backupbuddy::status( 'message', 'Backup STOPPED. Post backup cleanup step has been scheduled to clean up any temporary files.' );
+			pb_backupbuddy::status( 'message', 'Backup STOPPED by user. Post backup cleanup step has been scheduled to clean up any temporary files.' );
 			foreach( $this->_backup['steps'] as $step_id => $step ) {
 				if ( $step['function'] != 'post_backup' ) {
 					if ( $step['start_time'] == 0 ) {
@@ -832,8 +813,12 @@ class pb_backupbuddy_backup {
 		
 		$found_next_step = false;
 		
+		//pb_backupbuddy::status( 'details', 'Steps: ' . print_r( $this->_backup['steps'], true ) );
+		//pb_backupbuddy::status( 'details', 'FullOptions: ' . print_r( $this->_backup, true ) );
+		
 		
 		// Loop through steps finding first step that has not run.
+		$foundComplete = 0;
 		foreach( (array)$this->_backup['steps'] as $step_index => $step ) {
 			$this->_currentStepIndex = $step_index;
 			//pb_backupbuddy::status( 'details', 'step: ' . $step['function'] . 'start: ' . $step['start_time'] );
@@ -863,7 +848,7 @@ class pb_backupbuddy_backup {
 				
 			} elseif ( $step['start_time'] == 0 ) { // Step that is not marked for skippage and has not started yet.
 				$found_next_step = true;
-				$this->_backup['steps'][$step_index]['start_time'] = time(); // Set this step time to now.
+				$this->_backup['steps'][$step_index]['start_time'] = microtime(true); // Set this step time to now.
 				$this->_backup['steps'][$step_index]['attempts']++; // Increment this as an attempt.
 				$this->_backup_options->save();
 				
@@ -874,14 +859,17 @@ class pb_backupbuddy_backup {
 				pb_backupbuddy::status( 'details', 'Step `' . $step['function'] . '` flagged for skipping. Skipping.' );
 			} else { // Last case: Finished. Skip.
 				// Do nothing for completed steps.
-				//pb_backupbuddy::status( 'details', 'Step `' . $step['function'] . '` doing nothing with start `' . $step['start_time'] . '`.' );
+				$foundComplete++;
 			}
 			
 		} // End foreach().
 		
 		
 		if ( $found_next_step === false ) { // No more steps to perform; return.
-			pb_backupbuddy::status( 'details', 'No more steps found.' );
+			// NOTE: This should normally NOT be seen.  If it is run then a cron was scheduled despite there being no steps left which would not make sense.  This does appear some though as of Jul 22, 2015 for unknown reasons.  Missing post_backup() function?
+			pb_backupbuddy::status( 'details', 'Backup steps:' );
+			pb_backupbuddy::status( 'details', print_r( $this->_backup['steps'], true ) );
+			pb_backupbuddy::status( 'warning', 'No more unfinished steps found. This is unexpected usually not normal though may not be harmful to the backup. Total found completed: `' . $foundComplete . '`.' );
 			return false;
 		}
 		//pb_backupbuddy::save();
@@ -960,7 +948,7 @@ class pb_backupbuddy_backup {
 			
 		} else { // Function finished successfully.
 			
-			$this->_backup['steps'][$step_index]['finish_time'] = time();
+			$this->_backup['steps'][$step_index]['finish_time'] = microtime(true);
 			if (
 				( 'backup_create_database_dump' != $this->_backup['steps'][$step_index]['function'] ) // Do not wipe DB backup steps which track table dumps.
 				&&
@@ -968,7 +956,7 @@ class pb_backupbuddy_backup {
 				) { // Wipe arguments.  Keeps fileoptions for growing crazily for finished steps containing state data such as deployment or new zip functionality passing chunking state.
 				$this->_backup['steps'][$step_index]['args'] = time();
 			}
-			$this->_backup['updated_time'] = time();
+			$this->_backup['updated_time'] = microtime(true);
 			$this->_backup_options->save();
 			
 			pb_backupbuddy::status( 'details', sprintf( __('Finished function `%s`. Peak memory usage', 'it-l10n-backupbuddy' ) . ': ' . round( memory_get_peak_usage() / 1048576, 3 ) . ' MB', $this->_backup['steps'][$step_index]['function'] ) . ' with BackupBuddy v' . pb_backupbuddy::settings( 'version' ) ) . '.';
@@ -980,9 +968,13 @@ class pb_backupbuddy_backup {
 				if ( $next_step['start_time'] == 0 ) { // Another unstarted step exists. Schedule it.
 					$found_another_step = true;
 					if ( $this->_backup['profile']['backup_mode'] == '2' ) { // Modern mode with crons.
-						$this->cron_next_step();
-					} else { // classic mode
+						$this->cron_next_step( null, null, $next_step['function'] );
+					} elseif ( $this->_backup['profile']['backup_mode'] == '1' ) { // classic mode
+						pb_backupbuddy::status( 'details', 'Classic mode; skipping cron & triggering next step.' );
 						$this->process_backup( $this->_backup['serial'], $trigger );
+					} else {
+						pb_backupbuddy::status( 'error', 'Error #3838932: Fatal error. Unknown backup mode `' . $this->_backup['profile']['backup_mode'] . '`. Expected 1 (classic) or 2 (modern).' );
+						return false;
 					}
 					
 					break;
@@ -991,10 +983,24 @@ class pb_backupbuddy_backup {
 			
 			if ( $found_another_step == false ) {
 				pb_backupbuddy::status( 'details', __( 'No more backup steps remain. Finishing...', 'it-l10n-backupbuddy' ) );
-				$this->_backup['finish_time'] = time();
+				$this->_backup['finish_time'] = microtime(true);
 				$this->_backup_options->save();
 				pb_backupbuddy::status( 'startFunction', json_encode( array( 'function' => 'backup_success', 'title' => __( 'Backup completed successfully.', 'it-l10n-backupbuddy' ) ) ) );
 				pb_backupbuddy::status( 'finishFunction', json_encode( array( 'function' => 'backup_success' ) ) );
+				
+				// Notification for manual and scheduled backups (omits deployment stuff).
+				if ( ( $this->_backup['trigger'] == 'manual' ) || ( 'scheduled' == $this->_backup['trigger'] ) ) {
+					
+					$data = array();
+					$data['serial'] = $this->_backup['serial'];
+					$data['type'] = $this->_backup['type'];
+					$data['profile_title'] = $this->_backup['profile']['title'];
+					if ( '' != $this->_backup['schedule_title'] ) {
+						$data['schedule_title'] = $this->_backup['schedule_title'];
+					}
+					
+					backupbuddy_core::addNotification( 'backup_success', 'Backup completed successfully', 'A ' . $this->_backup['trigger'] . ' backup has completed successfully on your site.', $data );
+				}
 			} else {
 				pb_backupbuddy::status( 'details', 'Completed step function `' . $step['function'] . '`.' );
 				//pb_backupbuddy::status( 'details', 'The next should run in a moment. If it does not please check for plugin conflicts and that the next step is scheduled in the cron on the Server Information page.' );
@@ -1023,10 +1029,10 @@ class pb_backupbuddy_backup {
 	 *	
 	 *	@param		boolean		$spawn_cron			Whether or not to to spawn a loopback to run the cron. If using an offset this most likely should be false. Default: true
 	 *	@param		int			$future_offset		Seconds in the future for this process to run. Most likely set $spawn_cron false if using an offset. Default: 0
+	 *	@param		string		$next_step_title	Optional text title/function name/whatever of the next step to run. Useful for troubleshooting. Status logged.
 	 *	@return		null
 	 */
-	function cron_next_step( $spawn_cron = true, $future_offset = 0 ) {
-		
+	function cron_next_step( $spawn_cron = true, $future_offset = 0, $next_step_title = '' ) {
 		if ( '1' == pb_backupbuddy::$options['skip_spawn_cron_call'] ) {
 			pb_backupbuddy::status( 'details', 'Advanced option to skip call to spawn cron enabled. Setting to skip spawn_cron() call.' );
 			$spawn_cron = false;
@@ -1073,7 +1079,11 @@ class pb_backupbuddy_backup {
 			pb_backupbuddy::status( 'details', 'Not calling spawn_cron().' );
 		}
 		
-		pb_backupbuddy::status( 'details', 'About to run next step. If the backup does not proceed within 15 seconds then something is interfering with the WordPress CRON system such as: server loopback issues, caching plugins, or scheduling plugins. Try disabling other plugins to see if it resolves issue.  Check the Server Information page cron section to see if the next BackupBuddy step is scheduled to run. Enable "Classic" backup mode on the "Settings" page to rule out non-cron issues.' );
+		$next_step_note = '';
+		if ( '' != $next_step_title ) {
+			$next_step_note = ' (' . $next_step_title . ' expected)';
+		}
+		pb_backupbuddy::status( 'details', 'About to run next step' . $next_step_note . '. If the backup does not proceed within 15 seconds then something is interfering with the WordPress CRON system such as: server loopback issues, caching plugins, or scheduling plugins. Try disabling other plugins to see if it resolves issue.  Check the Server Information page cron section to see if the next BackupBuddy step is scheduled to run. Enable "Classic" backup mode on the "Settings" page to rule out non-cron issues. Additionally you may verify no other backup processes are trying to run at the same time by verifying there is not an existing backup process listed in the cron hogging the cron process.' );
 		return;
 		
 	} // End cron_next_step().
@@ -1153,15 +1163,15 @@ class pb_backupbuddy_backup {
 			
 			// Backup Info.
 			'backupbuddy_version'		=> pb_backupbuddy::settings( 'version' ),
-			'wordpress_version'			=> $wp_version,											// WordPress version.
-			'backup_time'				=> $this->_backup['start_time'],
-			'backup_type'				=> $this->_backup['type'],
-			'profile'					=> $this->_backup['profile'],
-			'default_profile'			=> pb_backupbuddy::$options['profiles'][0],				// Default profile.
-			'serial'					=> $this->_backup['serial'],
-			'trigger'					=> $trigger,											// What triggered this backup. Valid values: scheduled, manual.
-			'wp-config_in_parent'		=> $wp_config_parent,									// Whether or not the wp-config.php file is in one parent directory up. If in parent directory it will be copied into the temp serial directory along with the .sql and DAT file. On restore we will NOT place in a parent directory due to potential permission issues, etc. It will be moved into the normal location. Value set to true later in this function if applicable.
-			'deployment_direction'		=> $this->_backup['deployment_direction'],				// Deployment direction, if any.
+			'wordpress_version'			=> $wp_version,													// WordPress version.
+			'backup_time'				=> $this->_backup['start_time'],								// Time backup began.
+			'backup_type'				=> $this->_backup['type'],										// Backup type: full, db, files
+			'profile'					=> $this->_backup['profile'],									// Array of profile settings.
+			'default_profile'			=> pb_backupbuddy::$options['profiles'][0],						// Default profile.
+			'serial'					=> $this->_backup['serial'],									// Unique identifier (random) for this backup.
+			'trigger'					=> $trigger,													// What triggered this backup. Valid values: scheduled, manual.
+			'wp-config_in_parent'		=> $wp_config_parent,											// Whether or not the wp-config.php file is in one parent directory up. If in parent directory it will be copied into the temp serial directory along with the .sql and DAT file. On restore we will NOT place in a parent directory due to potential permission issues, etc. It will be moved into the normal location. Value set to true later in this function if applicable.
+			'deployment_direction'		=> $this->_backup['deployment_direction'],						// Deployment direction, if any.
 			
 			// WordPress Info.
 			'abspath'					=> ABSPATH,
@@ -1169,22 +1179,28 @@ class pb_backupbuddy_backup {
 			'homeurl'					=> home_url(),
 			'blogname'					=> get_option( 'blogname' ),
 			'blogdescription'			=> get_option( 'blogdescription' ),
-			'active_plugins'			=> implode( ', ', get_option( 'active_plugins' ) ),
-			'posts'						=> $totalPosts,											// Total WP posts, publishes, draft, private, trash, etc.
-			'pages'						=> $totalPages,											// Total WP pages, publishes, draft, private, trash, etc.
-			'comments'					=> $totalComments,										// Total WP comments, approved, spam, etc
-			'users'						=> $totalUsers,											// Total users on site.st
+			'active_plugins'			=> implode( ', ', get_option( 'active_plugins' ) ),				// List of active plugins at time of backup.
+			'posts'						=> $totalPosts,													// Total WP posts, publishes, draft, private, trash, etc.
+			'pages'						=> $totalPages,													// Total WP pages, publishes, draft, private, trash, etc.
+			'comments'					=> $totalComments,												// Total WP comments, approved, spam, etc
+			'users'						=> $totalUsers,													// Total users on site.
+			'wp_content_url'			=> WP_CONTENT_URL,
+			'wp_content_dir'			=> WP_CONTENT_DIR,
 			
 			// Database Info. Remaining sensitive info added in after printing out DAT (for security).
-			'db_prefix'					=> $wpdb->prefix,
-			'db_server'					=> DB_HOST,
-			'db_name'					=> DB_NAME,
-			'db_user'					=> '', // Set several lines down after printing out DAT.
-			'db_password'				=> '', // Set several lines down after printing out DAT.
+			'db_charset'				=> $wpdb->charset,												// Charset of the database. Eg utf8, utfmb4. @since v6.0.0.6.
+			'db_collate'				=> $wpdb->collate,												// Collate of the database. Eg utf8, utfmb4. @since v6.0.0.6.
+			'db_prefix'					=> $wpdb->prefix,												// DB prefix. Eg: wp_
+			'db_server'					=> DB_HOST,														// DB host / server address.
+			'db_name'					=> DB_NAME,														// DB name.
+			'db_user'					=> '',															// Set several lines down after printing out DAT.
+			'db_password'				=> '',															// Set several lines down after printing out DAT.
 			'db_exclusions'				=> implode( ',', explode( "\n", $this->_backup['profile']['mysqldump_additional_excludes'] ) ),
 			'db_inclusions'				=> implode( ',', explode( "\n", $this->_backup['profile']['mysqldump_additional_includes'] ) ),
+			'db_version'				=> $wpdb->db_version(),											// Database server (mysql) version.
 			'breakout_tables'			=> $this->_backup['breakout_tables'],							// Tables broken out into individual backup steps.
 			'tables_sizes'				=> $this->_backup['table_sizes'],								// Tables backed up and their sizes.
+			'force_single_db_file'		=> $this->_backup['force_single_db_file'],						// Tables forced into a single db_1.sql file.
 			
 			// Multisite Info.
 			'is_multisite' 				=> $is_multisite,												// Full Network backup?
@@ -2080,7 +2096,7 @@ class pb_backupbuddy_backup {
 				}
 				
 				pb_backupbuddy::status( 'details', 'Updating statistics for last backup completed and number of edits since last backup.' );
-				$finishTime = time();
+				$finishTime = microtime(true);
 				pb_backupbuddy::$options['last_backup_finish'] = $finishTime;
 				pb_backupbuddy::$options['last_backup_stats'] = array(
 																	//'serial'			=> $this->_backup['serial'],
@@ -2227,6 +2243,7 @@ class pb_backupbuddy_backup {
 	
 	
 	public function deploy_sendWait( $state, $sendFile, $sendPath, $sendType, $nextStep ) {
+		$identifier = $this->_backup['serial'] . '_' . md5( $sendFile . $sendType );
 		pb_backupbuddy::status( 'details', 'Waiting for send to finish for file `' . $sendFile . '` with ID `' . $identifier . '`.' );
 		
 		$maxSendTime = 60*5;
@@ -2238,7 +2255,6 @@ class pb_backupbuddy_backup {
 		
 		require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
 		pb_backupbuddy::status( 'details', 'Fileoptions instance #38.' );
-		$identifier = $this->_backup['serial'] . '_' . md5( $sendFile . $sendType );
 		$fileoptions_obj = new pb_backupbuddy_fileoptions( backupbuddy_core::getLogDirectory() . 'fileoptions/send-' . $identifier . '.txt', $read_only = false, $ignore_lock = true, $create_file = false );
 		if ( true !== ( $result = $fileoptions_obj->is_ok() ) ) {
 			pb_backupbuddy::status( 'error', __('Fatal Error #9034 E. Unable to access fileoptions data.', 'it-l10n-backupbuddy' ) . ' Error: ' . $result );
@@ -2310,6 +2326,23 @@ class pb_backupbuddy_backup {
 		require_once( pb_backupbuddy::plugin_path() . '/classes/deploy.php' );
 		$deploy = new backupbuddy_deploy( $state['destinationSettings'], $state );
 		
+		// If not pulling any DB contents then skip making remote backup file.
+		//error_log( print_r( $this->_backup['profile'], true ) );
+		if ( '1' == $this->_backup['profile']['skip_database_dump'] ) {
+			pb_backupbuddy::status( 'details', 'No database tables selected for pulling.  Skipping remote database snapshot (backup) zip creation and inserting file pull step.' );
+			$newStep = array(
+				'function'		=>	'deploy_pull_files',
+				'args'			=>	array( $state ),
+				'start_time'	=>	0,
+				'finish_time'	=>	0,
+				'attempts'		=>	0,
+			);
+			$this->insert_next_step( $newStep );
+			return true;
+		} else {
+			pb_backupbuddy::status( 'details', 'Database tables selected for pulling. Proceeding towards remote snapshot.' );
+		}
+		
 		// Get session token to restore so we won't be logged out. Place them in the remote backup profile array.
 		global $wpdb;
 		$sql = "SELECT meta_value FROM `" . DB_NAME . "`.`" . $wpdb->prefix . "usermeta` WHERE `user_id` = '" . $this->_backup['runnerUID'] . "' AND `meta_key` = 'session_tokens'";
@@ -2317,12 +2350,12 @@ class pb_backupbuddy_backup {
 		$results = $wpdb->get_var( $sql );
 		$this->_backup['profile']['sessionTokens'] = unserialize( $results );
 		$this->_backup['profile']['sessionID'] = $this->_backup['runnerUID'];
-		error_log( 'sourcetokens: ' . print_r( $this->_backup['profile'], true ) );
+		//error_log( 'sourcetokens: ' . print_r( $this->_backup['profile'], true ) );
 		pb_backupbuddy::status( 'details', 'Session tokens calculated.' );
 		
 		pb_backupbuddy::status( 'details', 'About to remote call.' );
 		if ( false === ( $response = backupbuddy_remote_api::remoteCall( $state['destination'], 'runBackup', array( 'profile' => base64_encode( json_encode( $this->_backup['profile'] ) ) ), $state['minimumExecutionTime'] ) ) ) {
-			pb_backupbuddy::status( 'error', 'Error #4448985: Unable to start remote backup via remote API.' );
+			pb_backupbuddy::status( 'error', 'Error #44548985: Unable to start remote backup via remote API.' );
 			return false;
 		}
 		pb_backupbuddy::status( 'details', 'Server response: `' . print_r( $response, true ) . '`.' );
@@ -2367,16 +2400,21 @@ class pb_backupbuddy_backup {
 		$mediaFileCount = 0;
 		$pluginFileCount = 0;
 		$themeFileCount = 0;
+		$childThemeFileCount = 0;
 		if ( true === $state['sendMedia'] ) {
 			$mediaFileCount = count( $state['pullMediaFiles'] );
 		}
-		if ( true === $state['sendPlugins'] ) {
+		if ( count( $state['sendPlugins'] > 0 ) ) {
 			$pluginFileCount = count( $state['pullPluginFiles'] );
 		}
 		if ( true === $state['sendTheme'] ) {
 			$themeFileCount = count( $state['pullThemeFiles'] );
 		}
-		$filesRemaining = $mediaFileCount + $pluginFileCount + $themeFileCount;
+		if ( true === $state['sendChildTheme'] ) {
+			$childThemeFileCount = count( $state['pullChildThemeFiles'] );
+		}
+		
+		$filesRemaining = $mediaFileCount + $pluginFileCount + $themeFileCount + $childThemeFileCount;
 		if ( '' != $pullBackupArchive ) { // add in backup archive if not yet sent.
 			$filesRemaining++;
 		}
@@ -2402,8 +2440,8 @@ class pb_backupbuddy_backup {
 			}
 		}
 		
-		if ( true !== $state['sendPlugins'] ) {
-			pb_backupbuddy::status( 'details', 'SKIPPING pull of plugin files.' );
+		if ( 0 == count( $state['sendPlugins'] ) ) {
+			pb_backupbuddy::status( 'details', 'No plugin files selected for transfer. Skipping send.' );
 		} else {
 			if ( $pluginFileCount > 0 ) { // Plugin files remain to send.
 				pb_backupbuddy::status( 'details', 'Plugins files remaining to send: ' . count( $state['pushPluginFiles'] ) );
@@ -2419,10 +2457,20 @@ class pb_backupbuddy_backup {
 		} else {
 			if ( $themeFileCount > 0 ) { // Plugin files remain to send.
 				$getFile = array_pop( $state['pullThemeFiles'] ); // Pop off last item in array. Faster than shift.
-				//$themePath = WP_CONTENT_DIR . '/themes/';
 				$themePath = get_template_directory(); // contains trailing slash.
 				$nextStep['args'] = array( $state );
 				return $this->deploy_getFile( $state, $themePath, $getFile, 'theme', $nextStep );
+			}
+		}
+		
+		if ( true !== $state['sendChildTheme'] ) {
+			pb_backupbuddy::status( 'details', 'SKIPPING pull of child theme files.' );
+		} else {
+			if ( $childThemeFileCount > 0 ) { // Plugin files remain to send.
+				$getFile = array_pop( $state['pullChildThemeFiles'] ); // Pop off last item in array. Faster than shift.
+				$childThemePath = get_stylesheet_directory(); // contains trailing slash.
+				$nextStep['args'] = array( $state );
+				return $this->deploy_getFile( $state, $childThemePath, $getFile, 'childTheme', $nextStep );
 			}
 		}
 		
@@ -2583,6 +2631,12 @@ class pb_backupbuddy_backup {
 	 */
 	public function deploy_pull_renderImportBuddy( $state ) {
 		
+		if ( '' == $state['pullLocalArchiveFile'] ) {
+			pb_backupbuddy::status( 'details', 'Skipping rendering of ImportBuddy step because there is no archive file. This is usually due to selecting no database tables to be pulled, therefore no import/migration needed.' );
+			pb_backupbuddy::status( 'deployFinished', 'Finished.' );
+			return true;
+		}
+		
 		if ( ! file_exists( $state['pullLocalArchiveFile'] ) ) {
 			pb_backupbuddy::status( 'error', 'Error #32783732: Backup file `' . $state['pullLocalArchiveFile'] . '` not found.' );
 			return false;
@@ -2705,16 +2759,20 @@ class pb_backupbuddy_backup {
 		$mediaFileCount = 0;
 		$pluginFileCount = 0;
 		$themeFileCount = 0;
+		$childThemeFileCount = 0;
 		if ( true === $state['sendMedia'] ) {
 			$mediaFileCount = count( $state['pushMediaFiles'] );
 		}
-		if ( true === $state['sendPlugins'] ) {
+		if ( count( $state['sendPlugins'] ) > 0 ) {
 			$pluginFileCount = count( $state['pushPluginFiles'] );
 		}
 		if ( true === $state['sendTheme'] ) {
 			$themeFileCount = count( $state['pushThemeFiles'] );
 		}
-		$filesRemaining = $mediaFileCount + $pluginFileCount + $themeFileCount;
+		if ( true === $state['sendChildTheme'] ) {
+			$childThemeFileCount = count( $state['pushChildThemeFiles'] );
+		}
+		$filesRemaining = $mediaFileCount + $pluginFileCount + $themeFileCount + $childThemeFileCount;
 		pb_backupbuddy::status( 'deployFilesRemaining', $filesRemaining );
 		pb_backupbuddy::status( 'details', 'Files remaining to send: ' . $filesRemaining );
 		
@@ -2729,8 +2787,8 @@ class pb_backupbuddy_backup {
 			}
 		}
 		
-		if ( true !== $state['sendPlugins'] ) {
-			pb_backupbuddy::status( 'details', 'SKIPPING push of plugin files.' );
+		if ( 0 == count( $state['sendPlugins'] ) ) {
+			pb_backupbuddy::status( 'details', 'No plugin files selected for transfer. Skipping send.' );
 		} else {
 			if ( $pluginFileCount > 0 ) { // Plugin files remain to send.
 				pb_backupbuddy::status( 'details', 'Plugins files remaining to send: ' . count( $state['pushPluginFiles'] ) );
@@ -2746,10 +2804,20 @@ class pb_backupbuddy_backup {
 		} else {
 			if ( $themeFileCount > 0 ) { // Plugin files remain to send.
 				$sendFile = array_pop( $state['pushThemeFiles'] ); // Pop off last item in array. Faster than shift.
-				//$themePath = WP_CONTENT_DIR . '/themes/';
 				$themePath = get_template_directory(); // contains trailing slash.
 				$nextStep['args'] = array( $state );
 				return $this->deploy_push_sendFile( $state, $themePath . $sendFile, $sendFile, 'theme', $nextStep );
+			}
+		}
+		
+		if ( true !== $state['sendChildTheme'] ) {
+			pb_backupbuddy::status( 'details', 'SKIPPING push of child theme files.' );
+		} else {
+			if ( $childThemeFileCount > 0 ) { // Plugin files remain to send.
+				$sendFile = array_pop( $state['pushChildThemeFiles'] ); // Pop off last item in array. Faster than shift.
+				$childThemePath = get_stylesheet_directory(); // contains trailing slash.
+				$nextStep['args'] = array( $state );
+				return $this->deploy_push_sendFile( $state, $childThemePath . $sendFile, $sendFile, 'childTheme', $nextStep );
 			}
 		}
 		
@@ -2817,19 +2885,13 @@ class pb_backupbuddy_backup {
 	
 	public function deploy_runningImportBuddy( $state ) {
 		
-		//pb_backupbuddy::status( 'details', 'TODO: POST TO IMPORTBUDDY HERE INSTEAD OF LOADING IN IFRAME' );
-		//error_log( 'TODO: POST TO IMPORTBUDDY HERE INSTEAD OF LOADING IN IFRAME' );
-		// HTTP POST $importbuddyURL . '?v=' . $importbuddyPassword
-		// POST VARS: ajax=api
+		$maxImportBuddyWaitTime = 60*60*1; // 1 hrs.
 		
-		// MAINTENANCE MODE ON
-		// EXTRACT FILES
-		// get current BB settings into $currentBackupBuddySettings
-		// import db to temp prefix
-		// overwrite imported BB settings with the previous current BB settings in $currentBackupBuddySettings
-		// swap live db and temp prefix
-		// MAINTENANCE MODE OFF
-		// confirm to remove temp old db tables
+		// Safety net just in case a loop forms.
+		if ( ( time() - $state['startTime'] ) > $maxImportBuddyWaitTime ) {
+			pb_backupbuddy::status( 'error', 'Error #8349484: Fatal error. ImportBuddy is taking too long to complete. Aborting deployment.' );
+			return false;
+		}
 		
 		pb_backupbuddy::status( 'details', 'Inserting deploy step to run importbuddy steps on remote server.' );
 		$newStep = array(
@@ -2840,6 +2902,8 @@ class pb_backupbuddy_backup {
 			'attempts'		=>	0,
 		);
 		$this->insert_next_step( $newStep );
+		sleep( 1 ); // Sleep to insure at least a minimum pause between running importbuddy steps.
+		return true;
 		
 	} // End deploy_waitingImportBuddy().
 	

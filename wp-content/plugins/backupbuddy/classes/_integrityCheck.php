@@ -1,6 +1,6 @@
 <?php
 $serial = self::get_serial_from_file( $file );
-pb_backupbuddy::status( 'details', 'Started backup_integrity_check() function for `' . $serial . '`.' );
+pb_backupbuddy::status( 'details', 'Started backup_integrity_check() function for `' . $serial . '` for file `' . $file . '`.' );
 
 // User selected to rescan a file.
 if ( pb_backupbuddy::_GET( 'reset_integrity' ) == $serial ) {
@@ -11,7 +11,9 @@ if ( pb_backupbuddy::_GET( 'reset_integrity' ) == $serial ) {
 $createdFileOptions = false;
 if ( ! file_exists( backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt' ) ) { // No fileoptions so get some minimal information from DAT file within zip.
 	require_once( pb_backupbuddy::plugin_path() . '/lib/zipbuddy/zipbuddy.php' );
-	$zipbuddy = new pluginbuddy_zipbuddy( backupbuddy_core::getLogDirectory() . 'fileoptions/' );
+	if ( ! isset( pb_backupbuddy::$classes['zipbuddy'] ) ) {
+		pb_backupbuddy::$classes['zipbuddy'] = new pluginbuddy_zipbuddy( backupbuddy_core::getLogDirectory() . 'fileoptions/' );
+	}
 	
 	if ( pb_backupbuddy::$classes['zipbuddy']->file_exists( $file, 'wp-content/uploads/backupbuddy_temp/' . $serial . '/backupbuddy_dat.php' ) === true ) { // Post 2.0 full backup
 		$backup_type = 'full';
@@ -42,7 +44,7 @@ $options = array_merge(
 	array(
 		'skip_database_dump' => '0',
 	),
-	$options
+	(array)$options
 );
 
 $scan_notes = array();
@@ -72,7 +74,7 @@ if ( true === $createdFileOptions ) {
 	$backup_options_options['breakout_tables'] = $options['breakout_tables'];
 	$backup_options_options['table_sizes'] = $options['tables_sizes'];
 	$backup_options_options['type'] = $options['backup_type'];
-	
+	$backup_options_options['force_single_db_file'] = $options['force_single_db_file'];
 	
 	$options = $options['profile'];
 }
@@ -203,7 +205,7 @@ if ( isset( $options['type'] ) && ( 'files' == $options['type'] ) ) {
 			}
 		}
 		
-		pb_backupbuddy::status( 'details', 'BackupBuddy v5.0+ format database datected.' );
+		pb_backupbuddy::status( 'details', 'BackupBuddy v5.0+ format database detected.' );
 		if ( 'db' == $backup_options_options['type'] ) { // DB.
 			pb_backupbuddy::status( 'details', 'Database-only type backup.' );
 			if ( pb_backupbuddy::$classes['zipbuddy']->file_exists( $file, 'db_1.sql' ) === true ) { // Commandline based.

@@ -37,7 +37,7 @@ class pb_backupbuddy {
 		'init'				=>		'',
 	);
 	private static $_page_settings;				// Holds admin page settings for adding to the admin menu on a hook later.
-	public static $_status_serial = '';		// Serial for writing the status for this page load. May be string OR array of multiple serials to write to.
+	public static $_status_serial = '';			// Serial for writing the status for this page load. String.
 	private static $_has_flushed = false;		/// Whether or not flush() has been called yet or not.
 
 	// Controller objects. See: /controllers/ directory.
@@ -559,7 +559,7 @@ class pb_backupbuddy {
 			}
 		}
 		
-		// .htaccess
+		// .htaccess if we aren't in the importbuddy script
 		if ( ! file_exists( $directory . '/.htaccess' ) ) {
 			if ( false === @file_put_contents( $directory . '/.htaccess', 'Options -Indexes' . $deny_all ) ) {
 				$error .= 'Unable to write .htaccess file. ';
@@ -676,7 +676,7 @@ class pb_backupbuddy {
 	 *
 	 *	@param	string			$type		Valid types: error, warning, details, message
 	 *	@param	string			$text		Text message to log.
-	 *	@param	string|array	$serial		Optional. Optional unique identifier for this plugin's message. Status messages are unique per plugin so this adds an additional unique layer for retrieval.
+	 *	@param	string			$serial		Optional. Optional unique identifier for this plugin's message. Status messages are unique per plugin so this adds an additional unique layer for retrieval.
 	 *										If self::$_status_serial has been set by set_status_serial() then it will override if $serial is blank.
 	 *	@return	null
 	 */
@@ -689,11 +689,6 @@ class pb_backupbuddy {
 		if ( ( self::$_status_serial != '' ) && ( $serials == '' ) ) {
 			$serials = self::$_status_serial;
 		}
-		if ( ! is_array( $serials ) ) {
-			$serials = array( $serials );
-		}
-		
-		
 		
 		if ( defined( 'BACKUPBUDDY_WP_CLI' ) && ( true === BACKUPBUDDY_WP_CLI ) ) {
 			if ( class_exists( 'WP_CLI' ) ) {
@@ -701,64 +696,71 @@ class pb_backupbuddy {
 			}
 		}
 		
-		//$delimiter = '|~|';
-		
 		// Make sure we have a unique log serial for all logs for security.
 		if ( ! isset( self::$options['log_serial'] ) || ( self::$options['log_serial'] == '' ) ) {
 			self::$options['log_serial'] = self::random_string( 15 );
 			self::save();
 		}
 		
+		if ( ! is_array( $serials ) ) {
+			$serials = array( $serials );
+		}
+		
 		// Calculate log directory.
 		$log_directory = backupbuddy_core::getLogDirectory(); // Also handles when within importbuddy.
 		
-		foreach( $serials as $serial ) {
-			// Determine whether writing to main file.
-			$write_main = false;
-			if ( self::$options['log_level'] == 0 ) { // No logging.
-					$write_main = false;
-			} elseif ( self::$options['log_level'] == 1 ) { // Errors only.
-				if ( $type == 'error' ) {
-					$write_main = true;
-					self::log( '[' . $serial . '] ' . $message, 'error' );
-				}
-			} else { // Everything else.
-				$write_main = true;
-				self::log( '[' . $serial . '] ' . $message, $type );
-			}
-			
-			if ( ( '' != $serial ) ) { // Has a serial so redirect log to this specific item instead of core log.
-				$main_file = $log_directory . 'status-' . $serial . '_sum_' . self::$options['log_serial'] . '.txt';
-			} else { // Normal main file.
-				$main_file = $log_directory . 'status-' . self::$options['log_serial'] . '.txt';
-			}
-			
-			// Determine whether writing to serial file. Ignores log level.
-			if ( $serial != '' ) {
-				$write_serial = true;
+		// Prepare directory for log files. Return if unable to do so.
+		if ( true === self::$_skiplog ) { // bool true so skip.
+			return;
+		} elseif( false !== self::$_skiplog ) { // something other than bool false so check directory before proceeding.
+			if ( true !== self::anti_directory_browsing( $log_directory, $die_on_fail = false, $deny_all = false, $suppress_alert = true ) ) { // Unable to secure directory. Fail.
+				self::$_skiplog = true;
+				return;
 			} else {
+				self::$_skiplog = false;
+			}
+		}
+		
+		foreach( $serials as $serial ) {
+			
+			// ImportBuddy always write to main status log.
+			if ( defined( 'PB_IMPORTBUDDY' ) && ( PB_IMPORTBUDDY === true ) ) { // IMPORTBUDDY
+				
 				$write_serial = false;
-			}
-			
-			// Return if not writing to any file.
-			if ( ( $write_main !== true )  && ( $write_serial !== true ) ) {
-				return;
-			}
-			
-			// Prepare directory for log files. Return if unable to do so.
-			if ( true === self::$_skiplog ) { // bool true so skip.
-				return;
-			} elseif( false !== self::$_skiplog ) { // something other than bool false so check directory before proceeding.
-				if ( true !== self::anti_directory_browsing( $log_directory, $die_on_fail = false, $deny_all = false, $suppress_alert = true ) ) { // Unable to secure directory. Fail.
-					self::$_skiplog = true;
-					return;
-				} else {
-					self::$_skiplog = false;
+				$write_main = true;
+				$main_file = $log_directory . 'status-' . self::$options['log_serial'] . '.txt';
+				
+			} else { // STANDALONE.
+				
+				// Determine whether writing to main extraneous log file.
+				$write_main = false;
+				if ( self::$options['log_level'] == 0 ) { // No logging.
+						$write_main = false;
+				} elseif ( self::$options['log_level'] == 1 ) { // Errors only.
+					if ( $type == 'error' ) {
+						$write_main = true;
+						self::log( '[' . $serial . '] ' . $message, 'error' );
+					}
+				} else { // Everything else.
+					$write_main = true;
+					self::log( '[' . $serial . '] ' . $message, $type );
 				}
+				
+				// Determine which normal status log files to write.
+				if ( $serial != '' ) {
+					$write_serial = true;
+					$write_main = true;
+					$main_file = $log_directory . 'status-' . $serial . '_sum_' . self::$options['log_serial'] . '.txt';
+				} else {
+					$write_serial = false;
+					$write_main = false;
+				}
+				
 			}
+			
 			
 			// Function for writing actual log CSV data. Used later.
-			if ( !function_exists( 'write_status_line' ) ) {
+			if ( ! function_exists( 'write_status_line' ) ) {
 				function write_status_line( $file, $content_array, $echoNotWrite ) {
 					$writeData = json_encode( $content_array ) . PHP_EOL;
 					if ( true === $echoNotWrite ) { // echo data instead of writing to file. used by ajax when checking status log and needing to prepend before log.
@@ -777,16 +779,6 @@ class pb_backupbuddy {
 				}
 			}
 			
-			/*
-			$content_array = array(
-				pb_backupbuddy::$format->localize_time( time() ), //time(),
-				sprintf( "%01.2f", round ( microtime( true ) - self::$start_time, 2 ) ),
-				sprintf( "%01.2f", round( memory_get_peak_usage() / 1048576, 2 ) ),
-				$type,
-				str_replace( chr(9), '   ', $message ),
-			);
-			*/
-			
 			$content_array = array(
 				'event'		=> $type,
 				'time'		=> pb_backupbuddy::$format->localize_time( time() ), // Time this happened.
@@ -795,12 +787,6 @@ class pb_backupbuddy {
 				'mem'		=> sprintf( "%01.2f", round( memory_get_peak_usage() / 1048576, 2 ) ), // Memory used.	
 				'data'		=> str_replace( chr(9), '   ', $message ), // Body of the message.
 			);
-			
-			global $pb_backupbuddy_js_status;
-			if ( ( defined( 'PB_IMPORTBUDDY' ) || ( isset( $pb_backupbuddy_js_status ) && ( $pb_backupbuddy_js_status === true ) ) ) && ( 'true' != pb_backupbuddy::_GET('deploy') ) ) { // If importbuddy, js mode, and not a deployment.
-				echo '<script>pb_status_append( ' . json_encode( $content_array ) . ' );</script>' . "\n";
-				pb_backupbuddy::flush();
-			}
 			
 			/********** MAIN LOG FILE or SUM FILE **********/
 			if ( $write_main === true ) { // WRITE TO MAIN LOG FILE or SUM FILE.
@@ -812,7 +798,16 @@ class pb_backupbuddy {
 				$serial_file = $log_directory . 'status-' . $serial . '_' . self::$options['log_serial'] . '.txt';
 				write_status_line( $serial_file, $content_array, $echoNotWrite );
 			}
+			
+			// Output importbuddy status log to screen.
+			global $pb_backupbuddy_js_status;
+			if ( ( defined( 'PB_IMPORTBUDDY' ) || ( isset( $pb_backupbuddy_js_status ) && ( $pb_backupbuddy_js_status === true ) ) ) && ( 'true' != pb_backupbuddy::_GET('deploy') ) ) { // If importbuddy, js mode, and not a deployment.
+				echo '<script>pb_status_append( ' . json_encode( $content_array ) . ' );</script>' . "\n";
+				pb_backupbuddy::flush();
+			}
+			
 		} // end foreach $serials.
+		
 		
 	} // End status().
 		
@@ -846,7 +841,7 @@ class pb_backupbuddy {
 		}
 		$status_file .= self::$options['log_serial'] . '.txt';
 		
-		if ( !file_exists( $status_file ) ) {
+		if ( ! file_exists( $status_file ) ) {
 			return array(); // No log.
 		}
 		
@@ -925,6 +920,8 @@ class pb_backupbuddy {
 		// Set socket timeout to requested period.
 		@ini_set( 'default_socket_timeout', $requested_socket_timeout );
 		
+		
+		pb_backupbuddy::status( 'details', 'Checking max PHP execution time settings.' );
 		// Set maximum execution time to requested period if not already better than that
 		// See if we can get a current value (of any sort)
 		if ( false === ( $original_execution_time = @ini_get( 'max_execution_time' ) ) ) {
@@ -944,9 +941,17 @@ class pb_backupbuddy {
 				self::status( 'details', __( 'Maximum PHP execution time was not modified', 'it-l10n-backupbuddy' ) );
 				self::status( 'details', sprintf( __( 'Reported PHP execution time - Configured: %1$s; Original: %2$s; Current: %3$s', 'it-l10n-backupbuddy' ), $configured_execution_time, $original_execution_time, $current_execution_time ) );
 			}
-		} else {
-			// Either not a numeric value or we need to try and increase
-			@set_time_limit( $requested_execution_time );
+		} else { // Either not a numeric value or we need to try and increase
+			
+			if ( isset( pb_backupbuddy::$options['set_greedy_execution_time'] ) && ( '1' == pb_backupbuddy::$options['set_greedy_execution_time'] ) ) {
+				if ( false === $supress_status ) {
+					self::status( 'details', sprintf( __( 'Attempting to set PHP execution time to %1$s', 'it-l10n-backupbuddy' ), $requested_execution_time ) );
+				}
+				@set_time_limit( $requested_execution_time );
+			}  elseif ( false === $supress_status ) {// end setting max execution time
+				pb_backupbuddy::status( 'details', 'Skipped attempting to override max PHP execution time based on settings.' );
+			}
+			
 			if ( false === $supress_status ) {
 				if ( false === ( $configured_execution_time = @get_cfg_var( 'max_execution_time' ) ) ) {
 					$configured_execution_time = 'Unknown';
@@ -954,10 +959,11 @@ class pb_backupbuddy {
 				if ( false === ( $current_execution_time = @ini_get( 'max_execution_time' ) ) ) {
 					$current_execution_time = 'Unknown';
 				}
-				self::status( 'details', sprintf( __( 'Attempted to set PHP execution time to %1$s', 'it-l10n-backupbuddy' ), $requested_execution_time ) );
 				self::status( 'details', sprintf( __( 'Reported PHP execution time - Configured: %1$s; Original: %2$s; Current: %3$s', 'it-l10n-backupbuddy' ), $configured_execution_time, $original_execution_time, $current_execution_time ) );
 			}
 		}
+		
+		
 		
 		
 		// Set memory_limit to either the user defined (WordPress defaulted) or over-ridden value

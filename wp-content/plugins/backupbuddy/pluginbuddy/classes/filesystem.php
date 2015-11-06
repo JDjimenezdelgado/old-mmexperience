@@ -91,14 +91,33 @@ class pb_backupbuddy_filesystem {
 	 *	This is essentially a recursive glob() although it does not use recursion to perform this.
 	 *
 	 *	@param		string		$dir		Path to pass to glob and walk through.
+	 *	@param		array 		$excludes	Array of directories to exclude, relative to the $dir.  Include beginning slash.
 	 *	@return		array					Returns array of all matches found.
 	 */
-	function deepglob( $dir ) {
+	function deepglob( $dir, $excludes = array() ) {
+		$dir = rtrim( $dir, '/\\' ); // Make sure no trailing slash.
+		$excludes = str_replace( $dir, '', $excludes );
+		$dir_len = strlen( $dir );
+		
 		$items = glob( $dir . '/*' );
+		if ( false === $items ) {
+			$items = array();
+		}
 		
 		for ( $i = 0; $i < count( $items ); $i++ ) {
+			// If this file/directory begins with an exclusion then jump to next file/directory.
+			foreach( $excludes as $exclude ) {
+				if ( backupbuddy_core::startsWith( substr( $items[$i], $dir_len ), $exclude ) ) {
+					unset( $items[$i] );
+					continue 2;
+				}
+			}
+			
 			if ( is_dir( $items[$i] ) ) {
 				$add = glob( $items[$i] . '/*' );
+				if ( false === $add ) {
+					$add = array();
+				}
 				$items = array_merge( $items, $add );
 			}
 		}

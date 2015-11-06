@@ -3,8 +3,8 @@ if ( ! defined( 'PB_IMPORTBUDDY' ) || ( true !== PB_IMPORTBUDDY ) ) {
 	die( '<html></html>' );
 }
 Auth::require_authentication(); // Die if not logged in.
-pb_backupbuddy::set_greedy_script_limits( true );
 pb_backupbuddy::load_view( '_iframe_header');
+pb_backupbuddy::set_greedy_script_limits();
 echo "<script>pageTitle( 'Step 2: Restoring Files' );</script>";
 pb_backupbuddy::status( 'details', 'Loading step 2.' );
 echo "<script>bb_showStep( 'unzippingFiles' );</script>";
@@ -78,14 +78,6 @@ function parse_options( $restoreData ) {
 	if ( ( 'all' == pb_backupbuddy::_POST( 'zipMethodStrategy' ) ) || ( 'ziparchive' == pb_backupbuddy::_POST( 'zipMethodStrategy' ) ) || ( 'pclzip' == pb_backupbuddy::_POST( 'zipMethodStrategy' ) ) ) {
 		$restoreData['zipMethodStrategy'] = pb_backupbuddy::_POST( 'zipMethodStrategy' );
 	}
-	
-	/*
-	if ( ( isset( $_POST['log_level'] ) ) && ( $_POST['log_level'] != '' ) ) {
-		pb_backupbuddy::$options['log_level'] = $_POST['log_level'];
-	} else {
-		pb_backupbuddy::$options['log_level'] = '';
-	}
-	*/
 	
 	return $restoreData;
 	

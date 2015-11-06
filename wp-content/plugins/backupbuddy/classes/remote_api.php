@@ -12,7 +12,7 @@ class backupbuddy_remote_api {
 		}
 		
 		if ( true !== self::is_call_valid() ) {
-			$message = 'Error #8483974: Error validating API call authenticity.';
+			$message = 'Error #8002: Error validating API call authenticity. Verify you are using the correct active API key.';
 			pb_backupbuddy::status( 'error', $message );
 			die( json_encode( array( 'success' => false, 'error' => $message ) ) );
 		}
@@ -117,7 +117,7 @@ class backupbuddy_remote_api {
 				'redirection' => 5,
 				'httpversion' => '1.0',
 				'blocking' => true,
-				'headers' => array(),
+				'headers' => array( 'Referer' => $remoteAPI['siteurl'] ), // Sending referer header helps prevent security blocks.
 				'body' => $body,
 				'cookies' => array()
 			)
@@ -130,7 +130,7 @@ class backupbuddy_remote_api {
 			}
 			//error_log( '3333Response: ' . $response['body'] );
 			if ( null === ( $return = json_decode( $response['body'], true ) ) ) {
-				return self::_error( 'Error #4543664: Unable to decode json response. Verify remote site API URL, API key, and that the remote site has the API enabled. Return data:<br><textarea style="width: 100%; height: 75px;">' . htmlentities( stripslashes_deep( $response['body'] ) ) . '</textarea><br>' );
+				return self::_error( 'Error #8001: Unable to decode json response. Verify remote site API URL `' . $remoteAPI['siteurl'] . '`, API key, and that the remote site has the API enabled in its wp-config.php by adding <i>define( \'BACKUPBUDDY_API_ENABLE\', true );</i> somewhere ABOVE the line "That\'s all, stop editing!". Return data: `' . htmlentities( stripslashes_deep( $response['body'] ) ) . '`.' );
 			} else {
 				if ( ! isset( $return['success'] ) || ( true !== $return['success'] ) ) { // Fail.
 					$error = '';
@@ -175,7 +175,7 @@ class backupbuddy_remote_api {
 		// Appends session tokens from the pulling site so they wont get logged out when this database is restored there.
 		if ( isset( $profileArray['sessionTokens'] ) && ( is_array( $profileArray['sessionTokens'] ) ) ) {
 			pb_backupbuddy::status( 'details', 'Remote session tokens need updated.', $backupSerial );
-			error_log( 'needtoken' );
+			//error_log( 'needtoken' );
 			
 			if ( ! is_numeric( $profileArray['sessionID'] ) ) {
 				$message = 'Error #328989893. Invalid session ID. Must be numeric.';
@@ -216,7 +216,7 @@ class backupbuddy_remote_api {
 			pb_backupbuddy::status( 'error', $message, $backupSerial );
 			die( json_encode( array( 'success' => false, 'error' => $message ) ) );
 		} else {
-			$archiveFilename = basename( pb_backupbuddy::$classes['backup']->calculateArchiveFilename( $backupSerial, $profileArray['type'] ) );
+			$archiveFilename = basename( backupbuddy_core::calculateArchiveFilename( $backupSerial, $profileArray['type'] ) );
 			die( json_encode( array( 'success' => true, 'backupSerial' => $backupSerial, 'backupFile' => $archiveFilename ) ) );
 		}
 	} // End _verb_runBackup().
@@ -263,44 +263,54 @@ class backupbuddy_remote_api {
 	// Receive theme file.
 	private static function _verb_sendFile_theme() {
 		self::_sendFile( 'theme' );
-	} // End _verb_sendFile_backup().
+	} // End _verb_sendFile_theme().
+	
+	// Receive child theme file.
+	private static function _verb_sendFile_childTheme() {
+		self::_sendFile( 'childTheme' );
+	} // End _verb_sendFile_childtheme().
 	
 	// Receive plugin file.
 	private static function _verb_sendFile_plugin() {
 		self::_sendFile( 'plugin' );
-	} // End _verb_sendFile_backup().
+	} // End _verb_sendFile_plugin().
 	
 	// Receive backup archive.
 	private static function _verb_sendFile_media() {
 		self::_sendFile( 'media' );
-	} // End _verb_sendFile_backup().
+	} // End _verb_sendFile_media().
 	
 	// Testing file send ability. File is transient; stored in temp dir momentarily.
 	private static function _verb_sendFile_test() {
 		self::_sendFile( 'test' );
-	} // End _verb_sendFile_backup().
+	} // End _verb_sendFile_test().
 	
 	
-	// Send backup archive.
+	
+	// Get backup archive.
 	private static function _verb_getFile_backup() {
 		self::_getFile( 'backup' );
-	} // End _verb_sendFile_backup().
+	} // End _verb_getFile_backup().
 	
-	
-	// Send theme file.
+	// Get theme file.
 	private static function _verb_getFile_theme() {
 		self::_getFile( 'theme' );
-	} // End _verb_sendFile_backup().
+	} // End _verb_getFile_theme().
 	
-	// Send plugin file.
+	// Get child theme file.
+	private static function _verb_getFile_childTheme() {
+		self::_getFile( 'childTheme' );
+	} // End _verb_getFile_childTeme().
+	
+	// Get plugin file.
 	private static function _verb_getFile_plugin() {
 		self::_getFile( 'plugin' );
-	} // End _verb_sendFile_backup().
+	} // End _verb_getFile_plugin().
 	
-	// Send backup archive.
+	// Get backup archive.
 	private static function _verb_getFile_media() {
 		self::_getFile( 'media' );
-	} // End _verb_sendFile_backup().
+	} // End _verb_getFile_media().
 	
 	
 	
@@ -322,8 +332,9 @@ class backupbuddy_remote_api {
 		} elseif ( 'plugin' == $type ) {
 			$rootDir = wp_normalize_path( WP_PLUGIN_DIR ) . '/';
 		} elseif ( 'theme' == $type ) {
-			//$rootDir = WP_CONTENT_DIR . '/themes/';
 			$rootDir = get_template_directory() . '/';
+		} elseif ( 'childTheme' == $type ) {
+			$rootDir = get_stylesheet_directory() . '/';
 		} elseif( 'test' == $type ) {
 			$rootDir = backupbuddy_core::getTempDirectory();
 		} else {
@@ -435,7 +446,7 @@ class backupbuddy_remote_api {
 	private static function _sendFile( $type = '' ) {
 		$rootDir = self::_getFilePathByType( $type ); // contains trailing slash.
 		
-		error_log( 'API saving file to dir: `' . $rootDir . '`.' );
+		//error_log( 'API saving file to dir: `' . $rootDir . '`.' );
 		
 		$cleanFile = str_replace( array( '\\', '/' ), '', stripslashes_deep( pb_backupbuddy::_POST( 'filename' ) ) );
 		$filePath = pb_backupbuddy::_POST( 'filepath' );
@@ -461,32 +472,8 @@ class backupbuddy_remote_api {
 		// Check if directory exists & create if needed.
 		$saveDir = dirname( $saveFile );
 		
+		
 		// Delete existing directory for some types of transfers.
-		/*
-		if ( 'plugin' == $type ) {
-			if ( true !== pb_backupbuddy::$filesystem->unlink_recursive( $saveDir ) ) {
-				$message = 'Error #3297837: Unable to delete existing plugin directory `' . $saveDir . '`.';
-				pb_backupbuddy::status( 'error', $message );
-				die( json_encode( array( 'success' => false, 'error' => $message ) ) );
-			}
-		} elseif ( 'theme' == $type ) {
-			if ( true !== pb_backupbuddy::$filesystem->unlink_recursive( $saveDir ) ) {
-				$message = 'Error #237362: Unable to delete existing theme directory `' . $saveDir . '`.';
-				pb_backupbuddy::status( 'error', $message );
-				die( json_encode( array( 'success' => false, 'error' => $message ) ) );
-			}
-		} elseif ( 'media' == $type ) {
-			//error_log( 'mediamoose' . $saveFile );
-			if ( ( 0 == $seekTo ) && ( file_exists( $saveFile ) ) ) { // New file transfer only. Do not delete existing file if chunking.
-				//error_log( 'zeroseekmoose' . $saveFile );
-				if ( true !== @unlink( $saveFile ) ) {
-					$message = 'Error #32898322: Unable to delete existing media file `' . $saveFile . '`.';
-					pb_backupbuddy::status( 'error', $message );
-					die( json_encode( array( 'success' => false, 'error' => $message ) ) );
-				}
-			}
-		}
-		*/
 		
 		if ( ( 0 == $seekTo ) && ( file_exists( $saveFile ) ) ) { // New file transfer only. Do not delete existing file if chunking.
 			//error_log( 'zeroseekmoose' . $saveFile );

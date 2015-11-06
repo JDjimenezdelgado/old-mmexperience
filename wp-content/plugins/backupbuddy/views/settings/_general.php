@@ -225,5 +225,5 @@ $settings_form->display_settings( 'Save General Settings' );
 		<a href="<?php echo pb_backupbuddy::ajax_url( 'importexport_settings' ); ?>&#038;TB_iframe=1&#038;width=640&#038;height=600" class="thickbox button secondary-button">Import/Export Plugin Settings</a>
 	</div>
 </div>
-<img src="http://www.ten28.com/sde.jpg">
+
 

@@ -9,7 +9,7 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 	
 	public static $destination_info = array(
 		'name'			=>		'Amazon S3',
-		'description'	=>		'Amazon S3 is a well known cloud storage provider. This destination is known to be reliable and works well with BackupBuddy. <b>New in BackupBuddy v4.1</b>: S3 now supports multipart chunked file transfers! <a href="http://aws.amazon.com/s3/" target="_blank">Learn more here.</a>',
+		'description'	=>		'Amazon S3 is a well known cloud storage provider. This destination is known to be reliable and works well with BackupBuddy. <a href="http://aws.amazon.com/s3/" target="_blank">Learn more here.</a>',
 	);
 	
 	// Default settings. Should be public static for auto-merging.
@@ -31,6 +31,7 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 		'storage'					=>		'standard',	// Whether to use standard or reduced redundancy storage. Allowed values: standard, reduced
 		'use_packaged_cert'			=>		'0',		// When 1, use the packaged cacert.pem file included with the AWS SDK.
 		'disable_file_management'	=>		'0',		// When 1, _manage.php will not load which renders remote file management DISABLED.
+		'disabled'					=>		'0',		// When 1, disable this destination.
 		
 		// Do not store these for destination settings. Only used to pass to functions in this file.
 		'_multipart_id'				=>		'',			// Instance var. Internal use only for continuing a chunked upload.
@@ -49,20 +50,23 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 	 *	
 	 *	Send one or more files.
 	 *	
-	 *	@param		array			$files			Array of one or more files to send.
+	 *	@param		array			$file			Array of one or more files to send.
 	 *	@return		boolean|array					True on success, false on failure, array if a multipart chunked send so there is no status yet.
 	 */
-	public static function send( $settings = array(), $files = array(), $send_id = '', $delete_after = false ) {
-		
+	public static function send( $settings = array(), $file, $send_id = '', $delete_after = false ) {
 		global $pb_backupbuddy_destination_errors;
+		if ( '1' == $settings['disabled'] ) {
+			$pb_backupbuddy_destination_errors[] = __( 'Error #48933: This destination is currently disabled. Enable it under this destination\'s Advanced Settings.', 'it-l10n-backupbuddy' );
+			return false;
+		}
+		if ( is_array( $file ) ) {
+			$file = $file[0];
+		}
+		
 		$backup_type_dir = '';
 		$region = '';
 		
 		$settings['bucket'] = strtolower( $settings['bucket'] ); // Buckets must be lowercase.
-		
-		if ( !is_array( $files ) ) {
-			$files = array( $files );
-		}
 		
 		$limit = $settings['archive_limit'];
 		$max_chunk_size = $settings['max_chunk_size'];
@@ -182,7 +186,7 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 				
 				// Update stats.
 				$fileoptions['_multipart_status'] = $update_status;
-				$fileoptions['finish_time'] = time();
+				$fileoptions['finish_time'] = microtime(true);
 				$fileoptions['status'] = 'success';
 				if ( isset( $uploaded_speed ) ) {
 					$fileoptions['write_speed'] = $uploaded_speed;
@@ -194,11 +198,11 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 			
 			
 			// Schedule to continue if anything is left to upload for this multipart of any individual files.
-			if ( ( $settings['_multipart_id'] != '' ) || ( count( $files ) > 0 ) ) {
+			if ( $settings['_multipart_id'] != '' ) {
 				pb_backupbuddy::status( 'details', 'S3 multipart upload has more parts left. Scheduling next part send.' );
 				
 				$cronTime = time();
-				$cronArgs = array( $settings, $files, $send_id, $delete_after );
+				$cronArgs = array( $settings, $file, $send_id, $delete_after );
 				$cronHashID = md5( $cronTime . serialize( $cronArgs ) );
 				$cronArgs[] = $cronHashID;
 				
@@ -211,15 +215,21 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 				spawn_cron( time() + 150 ); // Adds > 60 seconds to get around once per minute cron running limit.
 				update_option( '_transient_doing_cron', 0 ); // Prevent cron-blocking for next item.
 				
-				return array( $settings['_multipart_id'], 'Sent part ' . $this_part_number . ' of ' . count( $settings['_multipart_counts'] ) . ' parts.' );
+				$update_status = '<br>';
+				$totalSent = 0;
+				for( $i = 0; $i < $settings['_multipart_partnumber']; $i++ ) {
+					$totalSent += $settings['_multipart_counts'][ $i ]['length'];
+				}
+				pb_backupbuddy::status( 'details', 'settings: ' . print_r( $settings, true ) );
+				$percentSent = ceil( ( $totalSent / $settings['file_size'] ) * 100 );
+				$update_status .= '<div class="backupbuddy-progressbar" data-percent="' . $percentSent . '"><div class="backupbuddy-progressbar-label"></div></div>';
+				
+				return array( $settings['_multipart_id'], 'Sent part ' . $this_part_number . ' of ' . count( $settings['_multipart_counts'] ) . ' parts.' . $update_status );
 			}
-		} // end if multipart continuation.
-		
-		
-		require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
-		
-		// Upload each file.
-		foreach( $files as $file_id => $file ) {
+		} else { // not multipart continuation
+			
+			
+			require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
 			
 			// Determine backup type directory (if zip).
 			$backup_type_dir = '';
@@ -317,17 +327,15 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 				$multipart_destination_settings['_multipart_file'] = $file;
 				$multipart_destination_settings['_multipart_remotefile'] = $remote_path . basename( $file );
 				$multipart_destination_settings['_multipart_counts'] = $parts;
+				$multipart_destination_settings['file_size'] = $file_size;
 				
 				pb_backupbuddy::status( 'details', 'S3 multipart settings to pass:' . print_r( $multipart_destination_settings, true ) );
-				
-				unset( $files[$file_id] ); // Remove this file from queue of files to send as it is now passed off to be handled in multipart upload.
-				
 				
 				// Schedule to process the parts.
 				pb_backupbuddy::status( 'details', 'S3 scheduling send of next part(s).' );
 				
 				$cronTime = time();
-				$cronArgs = array( $multipart_destination_settings, $files, $send_id, $delete_after );
+				$cronArgs = array( $multipart_destination_settings, $file, $send_id, $delete_after );
 				$cronHashID = md5( $cronTime . serialize( $cronArgs ) );
 				$cronArgs[] = $cronHashID;
 				
@@ -390,9 +398,6 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 				pb_backupbuddy::status( 'details', 'Uploaded size: ' .  pb_backupbuddy::$format->file_size( $uploaded_size ) . ', Speed: ' . pb_backupbuddy::$format->file_size( $uploaded_speed ) . '/sec.' );
 				
 			}
-		
-			
-			unset( $files[$file_id] ); // Remove from list of files we have not sent yet.
 			
 			pb_backupbuddy::status( 'details', 'S3 success sending file `' . basename( $file ) . '`. File uploaded and reported to S3 as completed.' );
 			
@@ -417,8 +422,7 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 			}
 			unset( $fileoptions_obj );
 			
-		} // end foreach.
-		
+		} // end not multipart continuation.
 		
 		// BEGIN backup limits.
 		if ( $limit > 0 ) {
@@ -581,7 +585,7 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 			return 'Send details: `' . $send_response . '`. Delete details: `' . $delete_response . '`.';
 		} else {
 			$fileoptions['status'] = 'success';
-			$fileoptions['finish_time'] = time();
+			$fileoptions['finish_time'] = microtime(true);
 		}
 		
 		$fileoptions_obj->save();

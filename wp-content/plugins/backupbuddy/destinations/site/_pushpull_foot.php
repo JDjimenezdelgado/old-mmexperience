@@ -50,7 +50,7 @@ $backup_url .= '?page=pb_backupbuddy_backup';
 	<br>
 
 	<style>
-		.database_contents_select {
+		.database_contents_select, .plugins_select {
 			padding: 5px;
 			line-height: 1.7em;
 			max-height: 100px;
@@ -59,21 +59,21 @@ $backup_url .= '?page=pb_backupbuddy_backup';
 			background: #f9f9f9;
 			max-width: 400px;
 		}
-		.database_contents_select::-webkit-scrollbar {
+		.database_contents_select::-webkit-scrollbar, .plugins_select::-webkit-scrollbar {
 			-webkit-appearance: none;
 			width: 11px;
 			height: 11px;
 		}
-		.database_contents_select::-webkit-scrollbar-thumb {
+		.database_contents_select::-webkit-scrollbar-thumb, .plugins_select::-webkit-scrollbar-thumb {
 			border-radius: 8px;
 			border: 2px solid white; /* should match background, can't be transparent */
 			background-color: rgba(0, 0, 0, .1);
 		}
-		.database_contents_shortcuts {
+		.database_contents_shortcuts, .plugins_shortcuts {
 			color: #ADADAD;
 			margin-bottom: 3px;
 		}
-		.database_contents_shortcuts a {
+		.database_contents_shortcuts a, .plugins_shortcuts a {
 			text-decoration: none;
 			cursor: pointer;
 		}
@@ -82,14 +82,21 @@ $backup_url .= '?page=pb_backupbuddy_backup';
 	<script>
 		jQuery(document).ready(function() {
 			
+			/* Begin database contents selecting */
 			jQuery( '.database_contents_shortcuts-all' ).click( function(e){
 				e.preventDefault();
 				jQuery( '.database_contents_select' ).find( 'input' ).prop( 'checked', true );
+				bb_count_selected_tables();
 			});
 			
 			jQuery( '.database_contents_shortcuts-none' ).click( function(e){
 				e.preventDefault();
 				jQuery( '.database_contents_select' ).find( 'input' ).prop( 'checked', false );
+				bb_count_selected_tables();
+			});
+			
+			jQuery( '.database_contents_select input' ).click( function(){
+				bb_count_selected_tables();
 			});
 			
 			jQuery( '.database_contents_shortcuts-prefix' ).click( function(e){
@@ -108,9 +115,47 @@ $backup_url .= '?page=pb_backupbuddy_backup';
 						jQuery(this).prop( 'checked', false );
 					}
 				});
+				
+				bb_count_selected_tables();
+			});
+			/* End database contents selecting. */
+			
+			
+			
+			/* Begin plugins selecting. */
+			jQuery( '.plugins_shortcuts-all' ).click( function(e){
+				e.preventDefault();
+				jQuery( '.plugins_select' ).find( 'input' ).prop( 'checked', true );
+				bb_count_selected_plugins();
 			});
 			
+			jQuery( '.plugins_shortcuts-none' ).click( function(e){
+				e.preventDefault();
+				jQuery( '.plugins_select' ).find( 'input' ).prop( 'checked', false );
+				bb_count_selected_plugins();
+			});
+			
+			jQuery( '.plugins_select input' ).click( function(){
+				bb_count_selected_plugins();
+			});
+			/* End plugins selecting. */
+			
+			
+			
 		});
+
+		function bb_count_selected_tables() {
+			tableCount = jQuery( '.database_contents_select:visible' ).find( 'input:checked' ).length;
+			jQuery( '.database_contents_select_count' ).text( tableCount );
+		}
+		
+		function bb_count_selected_plugins() {
+			pluginCount = jQuery( '.plugins_select:visible' ).find( 'input:checked' ).length;
+			jQuery( '.plugins_select_count' ).text( pluginCount );
+		}
+		
+		bb_count_selected_tables();
+		bb_count_selected_plugins();
 	</script>
 
 	<h3><?php
@@ -138,7 +183,10 @@ $backup_url .= '?page=pb_backupbuddy_backup';
 		}
 		?>
 	</div>
-	<br>
+	<span class="description">
+		(<span class="database_contents_select_count"></span> tables selected)
+	</span>
+	<br><br>
 	
 	<h3><?php 
 		if ( 'pull' == $deployDirection ) {
@@ -147,9 +195,33 @@ $backup_url .= '?page=pb_backupbuddy_backup';
 			_e( 'Push', 'it-l10n-backupbuddy' );
 		}
 		echo ' ';
-		_e( 'Plugins', 'LIONS' );
+		_e( 'Active Plugins', 'LIONS' );
 	?></h3>
-	<label><input type="checkbox" name="sendPlugins" value="true"> Update destination plugins with newer or missing versions to match.</label>
+	
+	
+	
+	<div class="plugins_shortcuts">
+		<a class="plugins_shortcuts-all" title="Select all database tables.">Select All</a> | <a class="plugins_shortcuts-none" title="Unselect all database tables.">Unselect All</a>
+	</div>
+	<div class="plugins_select">
+		<?php
+		if ( 'pull' == $deployDirection ) {
+			foreach( $deployData['remoteInfo']['activePlugins'] as $pluginFile => $plugin ) {
+				echo '<label><input type="checkbox" name="sendPlugins[]" value="' . $pluginFile . '"> ' . $plugin['name'] . ' v' . $plugin['version'] . '</label><br>';
+			}
+		} else { // push
+			foreach( $localInfo['activePlugins'] as $pluginFile => $plugin ) {
+				echo '<label><input type="checkbox" name="sendPlugins[]" value="' . $pluginFile . '"> ' . $plugin['name'] . ' v' . $plugin['version'] . '</label><br>';
+			}
+		}
+		?>
+	</div>
+	<span class="description">
+		(<span class="plugins_select_count"></span> plugins selected)
+	</span>
+	
+	
+	
 	<br><br>
 	
 	<h3><?php
@@ -161,16 +233,36 @@ $backup_url .= '?page=pb_backupbuddy_backup';
 		echo ' ';
 		_e( 'Active Theme', 'LIONS' ); ?></h3>
 	<?php
+	// Main theme
 	if ( $deployData['remoteInfo']['activeTheme'] == $localInfo['activeTheme'] ) {
-		echo '<label><input type="checkbox" name="sendTheme" value="true"> Update destination active theme files with newer or missing files to match.</label>';
+		echo '<label><input type="checkbox" name="sendTheme" value="true"> Update <b>theme files</b> (template) with newer or missing files to match.</label>';
 	} else {
 		echo '<span class="description">' . __( 'Active theme differs so theme deployment is disabled.', 'it-l10n-backupbuddy' ) . '</span>';
 	}
+	echo '<br>';
+	
+	// Child theme.
+	if ( isset( $deployData['remoteInfo']['activeChildTheme'] ) ) {
+		if ( $deployData['remoteInfo']['activeChildTheme'] == $localInfo['activeChildTheme'] ) { // Remote and local child theme are the same.
+			if ( $localInfo['activeChildTheme'] != $localInfo['activeTheme'] ) { // Theme and childtheme differ so files will need sent.
+				echo '<label><input type="checkbox" name="sendChildTheme" value="true"> Update <b>child theme files</b> (stylesheet) with newer or missing files to match.</label>';
+			} else { // Theme and childtheme are same directory so only theme will be needed to pull/push.
+				echo '<span class="description">' . __( 'Child theme & theme are the same so files will not be re-sent.', 'it-l10n-backupbuddy' ) . '</span>';
+			}
+		} else {
+			echo '<span class="description">' . __( 'Active child theme differs so theme deployment is disabled.', 'it-l10n-backupbuddy' ) . '</span>';
+		}
+	} else {
+		echo '<span class="description">' . __( 'Remote site does not support deploying child theme. Update remote BackupBuddy.', 'it-l10n-backupbuddy' ) . '</span>';
+	}
+	
 	?>
 	<br><br>
 	
+	
+	
 	<h3><?php _e( 'Source Media / Atachments', 'LIONS' ); ?></h3>
-	<label><input type="checkbox" name="sendMedia" value="true"> Update destination media files with newer or missing files to match.</label>
+	<label><input type="checkbox" name="sendMedia" value="true"> Update media files with newer or missing files to match.</label>
 	<br><br>
 	
 	<br>
@@ -179,9 +271,9 @@ $backup_url .= '?page=pb_backupbuddy_backup';
 	<input type="hidden" name="deployData" value="<?php echo base64_encode( serialize( $deployData ) ); ?>">
 	<input type="submit" name="submitForm" class="button button-primary" value="<?php
 	if ( 'pull' == $deployDirection ) {
-		_e('Begin Pull (BETA)');
+		_e('Begin Pull');
 	} elseif( 'push' == $deployDirection ) {
-		_e('Begin Push (BETA)');
+		_e('Begin Push');
 	} else {
 		echo '{Err3849374:UnknownDirection}';
 	}

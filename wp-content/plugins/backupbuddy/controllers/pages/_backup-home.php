@@ -68,10 +68,11 @@ jQuery(window).load(function() {
 
 
 backupbuddy_core::versions_confirm();
-
+echo '<!-- BB-versions_confirm done-->';
 
 $alert_message = array();
 $preflight_checks = backupbuddy_core::preflight_check();
+echo '<!-- BB-preflight_check done -->';
 $disableBackingUp = false;
 foreach( $preflight_checks as $preflight_check ) {
 	if ( $preflight_check['success'] !== true ) {
@@ -89,7 +90,7 @@ if ( count( $alert_message ) > 0 ) {
 }
 
 
-
+echo '<!-- BB-listing backups -->';
 $view_data['backups'] = backupbuddy_core::backups_list( 'default' );
 $view_data['disableBackingUp'] = $disableBackingUp;
 pb_backupbuddy::load_view( '_backup-home', $view_data );

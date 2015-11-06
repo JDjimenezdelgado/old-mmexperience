@@ -118,6 +118,10 @@ pb_backupbuddy::load_style( 'filetree.css' );
 		// Select a destionation to return to parent page.
 		jQuery('.bb_destinations-existing .bb_destination-item a').click(function(e) {
 			e.preventDefault();
+			if ( jQuery(this).parent().hasClass( 'bb_destination-item-disabled' ) ) {
+				alert( 'This remote destination is unavailable.  It is either disabled in its Advanced Settings or not compatible with this server.' );
+				return false;
+			}
 			
 			<?php
 			if ( $mode == 'migration' ) {
@@ -463,7 +467,12 @@ if ( ( pb_backupbuddy::_GET( 'show_add' ) != 'true' ) && ( $destination_list_cou
 							continue;
 						}
 						
-						echo '<li class="bb_destination-item bb_destination-' . $destination['type'] . '"><a href="javascript:void(0)" title="' . $destination['title'] . '" rel="' . $destination_id . '">' . $destination['title'] . '</a></li>';
+						$disabledClass= '';
+						if ( isset( $destination['disabled'] ) && ( '1' == $destination['disabled'] ) ) {
+							$disabledClass = 'bb_destination-item-disabled';
+						}
+						
+						echo '<li class="bb_destination-item bb_destination-' . $destination['type'] . ' ' . $disabledClass . '"><a href="javascript:void(0)" title="' . $destination['title'] . '" rel="' . $destination_id . '">' . $destination['title'] . '</a></li>';
 					}
 					?>
 					<br><br><br>

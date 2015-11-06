@@ -39,7 +39,7 @@ foreach( (array)$currentBackup['steps'] as $step ) {
 	if ( '0' == $step['finish_time'] ) {
 		$currentBackupStats['processStepTitle'] = backupbuddy_core::prettyFunctionTitle( $step['function'] );
 		$currentBackupStats['processStepFunction'] = $step['function'];
-		$currentBackupStats['processStepElapsed'] = time() - $step['start_time'];
+		$currentBackupStats['processStepElapsed'] = microtime(true) - $step['start_time'];
 		break;
 	}
 }

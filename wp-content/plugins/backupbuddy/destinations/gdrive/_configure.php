@@ -35,10 +35,13 @@ if ( 'add' == $mode ) {
 			<li>In the new window select <span class="pb_label pb_label-subtle">Create Project</span> and name it something like "BackupBuddy" & <span class="pb_label pb_label-subtle">Create</span>. Wait for the next screen to display.</li>
 			<li>Once the project is created, from the left menu expand <span class="pb_label pb_label-subtle">APIs & auth</span> then <span class="pb_label pb_label-subtle">APIs</span></li>
 			<li>Beneath Google Apps APIs select <span class="pb_label pb_label-subtle">Drive API</span> then <span class="pb_label pb_label-subtle">Enable API</span> (Make sure you select Drive <b>API</b>, <i>not</i> Drive <b>SDK</b>)</li>
-			<li>From the left menu under <span class="pb_label pb_label-subtle">APIs & auth</span> select <span class="pb_label pb_label-subtle">Credentials</span> then <span class="pb_label pb_label-subtle">Create new Client ID</span></li>
-			<li>Select Application type of <span class="pb_label pb_label-subtle">Installed application</span> then <span class="pb_label pb_label-subtle">Configure Consent Screen</span></li>
+			<li>From the left menu under <span class="pb_label pb_label-subtle">APIs & auth</span> select <span class="pb_label pb_label-subtle">Credentials</span></li>
+			<li>Select the <span class="pb_label pb_label-subtle">Add Credentials</span> button then <span class="pb_label pb_label-subtle">OAuth 2.0 client ID</span></li>
+			<li>Select Application type of <span class="pb_label pb_label-subtle">Other</span></li>
+			<!--
 			<li>Select your email address then for Product name enter something like "BackupBuddy" then <span class="pb_label pb_label-subtle">Save</span></li>
 			<li>Select Application type of <span class="pb_label pb_label-subtle">Installed application</span> & below it Installed type <span class="pb_label pb_label-subtle">Other</span> then select <span class="pb_label pb_label-subtle">Create Client ID</span></li>
+		-->
 			<li>Copy & paste the <span class="pb_label pb_label-subtle">Client ID</span> & <span class="pb_label pb_label-subtle">Client Secret</span> below</li>
 		</ol>
 		
@@ -306,6 +309,17 @@ if ( $mode !== 'edit' ) {
 		'row_class'	=>		'advanced-toggle',
 	) );
 }
+$settings_form->add_setting( array(
+	'type'		=>		'checkbox',
+	'name'		=>		'disabled',
+	'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+	'title'		=>		__( 'Disable destination', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__( '[Default: unchecked] - When checked, this destination will be disabled and unusable until re-enabled. Use this if you need to temporary turn a destination off but don\t want to delete it.', 'it-l10n-backupbuddy' ),
+	'css'		=>		'',
+	'after'		=>		'<span class="description"> ' . __('Check to disable this destination until re-enabled.', 'it-l10n-backupbuddy' ) . '</span>',
+	'rules'		=>		'',
+	'row_class'	=>		'advanced-toggle',
+) );
 
 
 

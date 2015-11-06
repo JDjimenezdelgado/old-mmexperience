@@ -4,7 +4,7 @@
  *	Plugin Name: BackupBuddy (shared on wplocker.com)
  *	Plugin URI: http://ithemes.com/purchase/backupbuddy/
  *	Description: The most complete WordPress solution for Backup, Restoration, Migration, and Deployment. Backs up a customizable selection of files, settings, and content for a complete snapshot of your site. Restore, migrate, or deploy your site to a new host or new domain with complete ease-of-mind.
- *	Version: 6.0.0.1
+ *	Version: 6.3.2.2
  *	Author: iThemes
  *	Author URI: http://ithemes.com/
  *	iThemes Package: backupbuddy
@@ -25,7 +25,7 @@
 
 
 
-// Plugin defaults:
+// Plugin defaults. Settings stored in wp_options under "pb_backupbuddy". Auditing notifications stored in "pb_backupbuddy_notificiations" as of 6.1.0.0.
 $pluginbuddy_settings = array(
 				'slug'				=>		'backupbuddy',
 				'series'			=>		'',
@@ -55,6 +55,7 @@ $pluginbuddy_settings = array(
 												'archive_limit_age'					=>		0,					// Maximum age (in days) backup files can be before being deleted. Any exceeding age deleted on backup.
 												'delete_archives_pre_backup'		=>		0,					// Whether or not to delete all backups prior to backing up.
 												'lock_archives_directory'			=>		0,					// Whether or not to lock archives directory via htaccess and lift lock temporarily for download.
+												'set_greedy_execution_time'			=>		0,					// Whether or not to try and override PHP max execution time to a higher value. Most hosts block this.
 												
 												'email_notify_scheduled_start'             => '',				// Email address(es) to send to when a scheduled backup begins.
 												'email_notify_scheduled_start_subject'     => 'BackupBuddy Scheduled Backup Started - {site_url}',
@@ -71,6 +72,7 @@ $pluginbuddy_settings = array(
 												'email_return'                             => '',				// Return email address for emails sent. Defaults to admin email if none specified.
 												
 												'remote_destinations'				=>		array(),			// Array of remote destinations (S3, Rackspace, email, ftp, etc)
+												'remote_send_timeout_retries'		=>		'1',					// Number of times to attempt to resend timed out remote destination. IMPORTANT: Currently only permits values or 1 or 0. 1 max tries.
 												'role_access'						=>		'activate_plugins',	// Default role access to the plugin.
 												'dropboxtemptoken'					=>		'',					// Temporary Dropbox token for oauth.
 												'backup_mode'						=>		'2',				// 1 = 1.x, 2 = 2.x mode
@@ -128,6 +130,8 @@ $pluginbuddy_settings = array(
 												'deployments'						=>		array(),
 												'max_send_stats_days'				=>		'7',				// Max days to hold onto recent send fileoptions stats files to keep. Default 604800 = 1 week. Configurable in settings.
 												'max_send_stats_count'				=>		'6',				// Maxn numeric amount of most recent send fileoptions stats files to keep. Configurable in settings.
+												'max_notifications_age_days'		=>		'21',				// Max days to keep notifications.
+												'save_backup_sum_log'				=>		'1',				// 1 or 0.  When 1 the full backup status log will be saved in a log file with _sum_ in it. This allows viewing the full status log regardless of Log Level setting.
 												'profiles'							=>		array(
 																								0 => array(
 																													'type'							=>		'defaults',
@@ -195,6 +199,15 @@ $pluginbuddy_settings = array(
 												'remote_destinations'		=>		'',
 												'last_run'					=>		0,
 												'on_off'					=>		'1',
+											),
+				'notification_defaults' =>	array(	// Array stored in wp_options "pb_backupbuddy_notifications" rather than Settings array.
+												'time'			=> 0,
+												'slug'			=> '',
+												'title'			=> '',
+												'message'		=> '',
+												'data'			=> array(),
+												'urgent'		=> false,
+												'syncSent'		=> false,				// Whether or not this notification has been sent to iThemes Sync yet.
 											),
 				'wp_minimum'		=>		'3.5.0',
 				'php_minimum'		=>		'5.2',

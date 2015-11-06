@@ -49,5 +49,7 @@ if ( $result === false ) {
 	return 'Error scheduling event with WordPress. Your schedule may not work properly. Please try again. Error #3488439b. Check your BackupBuddy error log for details.';
 } else {
 	pb_backupbuddy::save();
+	backupbuddy_core::addNotification( 'schedule_created', 'Backup schedule created', 'A new backup schedule "' . $schedule['title'] . '" has been created.', $schedule );
+	
 	return true;
 }

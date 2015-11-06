@@ -269,11 +269,14 @@ foreach( pb_backupbuddy::$options['remote_destinations'] as $destination_id => $
 		} else {
 			$test_button = '';
 		}
+		/*
 		if ( $pb_hide_save !== true ) {
 			$save_and_delete_button = '<img class="pb_backupbuddy_destpicker_saveload" src="' . pb_backupbuddy::plugin_url() . '/images/loading.gif" title="Saving... This may take a few seconds...">';
 		} else {
 			$save_and_delete_button = '';
 		}
+		*/
+		$save_and_delete_button = '';
 		$save_and_delete_button .= '<a href="#" class="button secondary-button pb_backupbuddy_destpicker_delete" href="javascript:void(0)" title="Delete this Destination">Delete Destination</a>';
 		echo $settings->display_settings( 'Save Settings', $save_and_delete_button . '&nbsp;&nbsp;' . $test_button . '&nbsp;&nbsp;', $afterText = ' <img class="pb_backupbuddy_destpicker_saveload" src="' . pb_backupbuddy::plugin_url() . '/images/loading.gif" title="Saving... This may take a few seconds...">', 'pb_backupbuddy_destpicker_save' ); // title, before, after, class
 	}
@@ -306,7 +309,10 @@ $destination_type = pb_backupbuddy::_GET( 'add' );
 					if ( true === $destination['compatible'] ) {
 						echo '<li class="bb_destination-item bb_destination-' . $destination_name . ' bb_destination-new-item">';
 						
-						if ( 'site' == $destination_name ) {
+						if ( 's32' == $destination_name ) {
+							echo '<div class="bb-ribbon"><span>New</span></div>';
+						}
+						if ( 'stash2' == $destination_name ) {
 							echo '<div class="bb-ribbon"><span>Beta</span></div>';
 						}
 						

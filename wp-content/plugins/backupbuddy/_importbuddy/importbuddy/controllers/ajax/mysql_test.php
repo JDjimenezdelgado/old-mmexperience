@@ -5,6 +5,9 @@ if ( ! defined( 'PB_IMPORTBUDDY' ) || ( true !== PB_IMPORTBUDDY ) ) {
 Auth::require_authentication(); // Die if not logged in.
 
 
+
+
+
 // Tests variables to populate with results.
 $tests = array(
 	'connect'				=> false,	// Able to connect & login to db server?
@@ -33,6 +36,26 @@ if ( ( '' == $server ) || ( '' == $username ) || ( '' == $database ) || ( '' == 
 
 
 /***** BEGIN TESTS *****/
+
+
+/*
+// TODO: Convert this file to make use of the wpdb class.
+
+require_once( ABSPATH . 'importbuddy/classes/wp-db.php' );
+global $wpdb;
+$wpdb = new wpdb( $username, $password, $database, $server );
+if ( false === $wpdb->dbh ) {
+	$tests['connect_error'] = 'Unable to connect to database server and/or select the database. Details: `' . $wpdb->last_error . '`.';
+	die( json_encode( $tests ) );
+}
+$tests['connect'] = true;
+$tests['selectdb'] = true;
+
+// Test ability to create (and delete) a table to verify permissions.
+// ...and so on...
+
+*/
+
 
 if ( false === @mysql_connect( $server, $username, $password ) ) { // CONNECT failed.
 	

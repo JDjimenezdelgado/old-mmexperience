@@ -16,13 +16,16 @@ class pb_backupbuddy_filters extends pb_backupbuddy_filterscore {
 			$schedules = array();
 		}
 		
-		$schedules['twicedaily'] = array( 'interval' => 43200, 'display' => 'Twice Daily' );
-		$schedules['everyotherday'] = array( 'interval' => 172800, 'display' => 'Every Other Day' );
-		$schedules['twiceweekly'] = array( 'interval' => 302400, 'display' => 'Twice Weekly' );
-		$schedules['weekly'] = array( 'interval' => 604800, 'display' => 'Once Weekly' );
-		$schedules['twicemonthly'] = array( 'interval' => 1296000, 'display' => 'Twice Monthly' );
-		$schedules['monthly'] = array( 'interval' => 2592000, 'display' => 'Once Monthly' );
-		$schedules['yearly'] = array( 'interval' => 31556900, 'display' => 'Once Yearly' );
+		$schedules['five_minutes_interval'] = array( 'interval' => 300, 'display' => __( 'Once every five minutes', 'it-l10n-backupbuddy' ) ); // Used for BB Live.
+		$schedules['twicedaily'] = array( 'interval' => 43200, 'display' => __( 'Twice Daily', 'it-l10n-backupbuddy' ) );
+		$schedules['everyotherday'] = array( 'interval' => 172800, 'display' => __( 'Every Other Day', 'it-l10n-backupbuddy' ) );
+		$schedules['twiceweekly'] = array( 'interval' => 302400, 'display' => __( 'Twice Weekly', 'it-l10n-backupbuddy' ) );
+		$schedules['weekly'] = array( 'interval' => 604800, 'display' => __( 'Once Weekly', 'it-l10n-backupbuddy' ) );
+		$schedules['twicemonthly'] = array( 'interval' => 1296000, 'display' => __( 'Twice Monthly', 'it-l10n-backupbuddy' ) );
+		$schedules['monthly'] = array( 'interval' => 2592000, 'display' => __( 'Once Monthly', 'it-l10n-backupbuddy' ) );
+		$schedules['quarterly'] = array( 'interval' => 7889225, 'display' => __( 'Every Three Months (Quarterly)', 'it-l10n-backupbuddy' ) );
+		$schedules['twiceyearly'] = array( 'interval' => 15778450, 'display' => __( 'Twice Yearly', 'it-l10n-backupbuddy' ) );
+		$schedules['yearly'] = array( 'interval' => 31556900, 'display' => __( 'Once Yearly', 'it-l10n-backupbuddy' ) );
 		return $schedules;
 	} // End cron_schedules().
 	

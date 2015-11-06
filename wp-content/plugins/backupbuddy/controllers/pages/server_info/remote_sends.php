@@ -79,7 +79,14 @@ foreach( $remote_sends as $send_id => $remote_send ) {
 	}
 	
 	if ( isset( $remote_send['error'] ) ) {
-		$error_details = '<br><span class="description" style="margin-left: 10px;">' . $remote_send['error'] . '</span>';
+		$error_details = '<br><span class="description" style="
+  margin-left: 10px;
+  display: block;
+  max-width: 500px;
+  max-height: 250px;
+  overflow: scroll;
+  background: #fff;
+  padding: 10px;">' . $remote_send['error'] . '</span>';
 	} else {
 		$error_details = '';
 	}
@@ -92,6 +99,8 @@ foreach( $remote_sends as $send_id => $remote_send ) {
 		$status = '<span class="pb_label pb_label-info">In progress or timed out</span>'; // <a class="pb_backupbuddy_remotesend_abort" href="' . pb_backupbuddy::ajax_url( 'remotesend_abort' ) . '&send_id=' . $send_id  . '">( Abort )</a>';
 	} elseif ( $remote_send['status'] == 'timeout' ) {
 		$status = '<span class="pb_label pb_label-error">Failed (likely timeout)</span>'; // <a class="pb_backupbuddy_remotesend_abort" href="' . pb_backupbuddy::ajax_url( 'remotesend_abort' ) . '&send_id=' . $send_id  . '">( Abort )</a>';
+	} elseif ( $remote_send['status'] == 'failed' ) {
+		$status = '<span class="pb_label pb_label-error">Failed</span>';
 	} elseif ( $remote_send['status'] == 'aborted' ) {
 		$status = '<span class="pb_label pb_label-warning">Aborted by user</span>';
 	} elseif ( $remote_send['status'] == 'multipart' ) {
@@ -103,11 +112,25 @@ foreach( $remote_sends as $send_id => $remote_send ) {
 		$status .= '<br>' . $remote_send['_multipart_status'];
 	}
 	
+	$status .= '<div class="row-actions">';
+	
 	// Display 'View Log' link if log available for this send.
 	$log_file = backupbuddy_core::getLogDirectory() . 'status-remote_send-' . $send_id . '_' . pb_backupbuddy::$options['log_serial'] . '.txt';
 	if ( file_exists( $log_file ) ) {
-		$status .= '<br><a title="' . __( 'Backup Process Technical Details', 'it-l10n-backupbuddy' ) . '" href="' . pb_backupbuddy::ajax_url( 'remotesend_details' ) . '&send_id=' . $send_id . '&#038;TB_iframe=1&#038;width=640&#038;height=600" class="thickbox">View Log</a>';
+		$status .= '<a title="' . __( 'View Remote Send Log', 'it-l10n-backupbuddy' ) . '" href="' . pb_backupbuddy::ajax_url( 'remotesend_details' ) . '&send_id=' . $send_id . '&#038;TB_iframe=1&#038;width=640&#038;height=600" class="thickbox">View Log</a>';
 	}
+	
+	$status .= ' | <a title="' . __( 'Remote Send Technical Details', 'it-l10n-backupbuddy' ) . '" href="' . pb_backupbuddy::ajax_url( 'send_status' ) . '&send_id=' . $send_id . '&#038;TB_iframe=1&#038;width=640&#038;height=600" class="thickbox">View Details</a>';
+	
+	if ( 'success' != $remote_send['status'] ) {
+		$status .= ' | <a title="' . __( 'Force resend attempt', 'it-l10n-backupbuddy' ) . '" href="' . pb_backupbuddy::ajax_url( 'remotesend_retry' ) . '&send_id=' . $send_id . '&#038;TB_iframe=1&#038;width=640&#038;height=600" class="thickbox">Retry Send Now</a>';
+	}
+	
+	
+	
+	$status .= '</div>';
+	
+	
 	
 	
 	// Determine destination.
@@ -119,7 +142,7 @@ foreach( $remote_sends as $send_id => $remote_send ) {
 	
 	$write_speed = '';
 	if ( isset( $remote_send['write_speed'] ) && ( '' != $remote_send['write_speed'] ) ) {
-		$write_speed = 'Transfer Speed: ' . pb_backupbuddy::$format->file_size( $remote_send['write_speed'] ) . '/sec<br>';
+		$write_speed = 'Transfer Speed: &gt; ' . pb_backupbuddy::$format->file_size( $remote_send['write_speed'] ) . '/sec<br>';
 	}
 	
 	$trigger = ucfirst( $remote_send['trigger'] );
@@ -146,7 +169,7 @@ foreach( $remote_sends as $send_id => $remote_send ) {
 
 
 if ( count( $sends ) == 0 ) {
-	echo '<br>' . __( 'There have been no recent file transfers.', 'it-l10n-backupbuddy' ) . '<br>';
+	echo '<br><span class="description">' . __( 'There have been no recent file transfers.', 'it-l10n-backupbuddy' ) . '</span><br>';
 } else {
 	pb_backupbuddy::$ui->list_table(
 		$sends,
@@ -157,11 +180,14 @@ if ( count( $sends ) == 0 ) {
 				__( 'Destination', 'it-l10n-backupbuddy' ),
 				__( 'Trigger', 'it-l10n-backupbuddy' ),
 				__( 'Transfer Information', 'it-l10n-backupbuddy' ) . ' <img src="' . pb_backupbuddy::plugin_url() . '/images/sort_down.png" style="vertical-align: 0px;" title="Sorted most recent started first">',
-				__( 'Status', 'it-l10n-backupbuddy' ),
+				__( 'Status', 'it-l10n-backupbuddy' ) . ' <span class="description">(hover for options)</span>',
 				),
 			'css'			=>		'width: 100%;',
 		)
 	);
+	echo '<div class="alignright actions">';
+	pb_backupbuddy::$ui->note( 'Hover over items above for additional options.' );
+	echo '</div>';
 }
 
 ?><br>

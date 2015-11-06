@@ -1,5 +1,8 @@
 <?php
 // Incoming vars: $destination, $destination_id
+if ( isset( $destination['disabled'] ) && ( '1' == $destination['disabled'] ) ) {
+	die( __( 'This destination is currently disabled based on its settings. Re-enable it under its Advanced Settings.', 'it-l10n-backupbuddy' ) );
+}
 
 //pb_backupbuddy::$ui->title( 'Deployment' );
 include( pb_backupbuddy::plugin_path() . '/classes/remote_api.php' );
@@ -64,7 +67,7 @@ $deploy = new backupbuddy_deploy( $destination, '', $destination_id );
 		font-size: 1.4em;
 		padding: 14px;
 		color: #FFF;
-		
+		text-align: center;
 		opacity: 0.5;
 		
 		-webkit-border-radius: 3px;
@@ -79,6 +82,7 @@ $deploy = new backupbuddy_deploy( $destination, '', $destination_id );
 	}
 	.deploy-pushpull-wrap {
 		font-size: 1.4em !important;
+		white-space: nowrap;
 	}
 	.deploy-sites-table td {
 		padding: 30px;
@@ -119,7 +123,7 @@ $errorMessage = '';
 if ( false === $status ) {
 	$errors = $deploy->getErrors();
 	if ( count( $errors ) > 0 ) {
-		$errorMessage = 'Errors were encountered: ' . implode( ', ', $errors ) . ' If seeking support please click to Show Advanced Details above and provide a copy of the log.';
+		$errorMessage = 'Errors were encountered: ' . implode( ', ', $errors ) . ' <b><i>If seeking support please provide the details above.</i></b>';
 	}
 	$siteUp = false;
 } else {
@@ -144,9 +148,9 @@ if ( false === $status ) {
 		<td><?php echo $deploy->_state['destination']['siteurl']; ?></td>
 		<?php if ( true === $siteUp ) { ?>
 			<td class="deploy-pushpull-wrap">
-				<a href="javascript:void(0);" class="deploy-push-text" onClick="jQuery( '.deploy-type-selected' ).removeClass( 'deploy-type-selected' ); jQuery(this).addClass( 'deploy-type-selected' ); jQuery('#deploy-pull-wrap').hide(); jQuery('#deploy-push-wrap').slideDown(); jQuery('#backupbuddy_deploy_direction').attr('data-direction','push' ); jQuery( '.database_contents_shortcuts-prefix' ).click();">Push to (BETA)</a>
+				<a href="javascript:void(0);" class="deploy-push-text" onClick="jQuery( '.deploy-type-selected' ).removeClass( 'deploy-type-selected' ); jQuery(this).addClass( 'deploy-type-selected' ); jQuery('#deploy-pull-wrap').hide(); jQuery('#deploy-push-wrap').slideDown(); jQuery('#backupbuddy_deploy_direction').attr('data-direction','push' ); jQuery( '.database_contents_shortcuts-prefix' ).click(); jQuery( '.plugins_shortcuts-none' ).click();">Push to</a>
 				&nbsp;|&nbsp;
-				<a href="javascript:void(0);" class="deploy-pull-text" onClick="jQuery( '.deploy-type-selected' ).removeClass( 'deploy-type-selected' ); jQuery(this).addClass( 'deploy-type-selected' ); jQuery('#deploy-push-wrap').hide(); jQuery('#deploy-pull-wrap').slideDown(); jQuery('#backupbuddy_deploy_direction').attr('data-direction','pull' ); jQuery( '.database_contents_shortcuts-prefix' ).click();">Pull from (BETA)</a>
+				<a href="javascript:void(0);" class="deploy-pull-text" onClick="jQuery( '.deploy-type-selected' ).removeClass( 'deploy-type-selected' ); jQuery(this).addClass( 'deploy-type-selected' ); jQuery('#deploy-push-wrap').hide(); jQuery('#deploy-pull-wrap').slideDown(); jQuery('#backupbuddy_deploy_direction').attr('data-direction','pull' ); jQuery( '.database_contents_shortcuts-prefix' ).click(); jQuery( '.plugins_shortcuts-none' ).click();">Pull from</a>
 			</td>
 		<?php } ?>
 	</tr>
@@ -173,7 +177,7 @@ if ( '' != $errorMessage ) {
 
 
 
-$activePluginsA = 'BackupBuddy v' . $deployData['remoteInfo']['backupbuddyVersion'] . '<span style="position: relative; top: -0.5em; font-size: 0.7em;">&Dagger;</span>'; // Start with BB. Is only in the visual list. Will not be deployed.
+$activePluginsA = 'BackupBuddy v' . $localInfo['backupbuddyVersion'] . '<span style="position: relative; top: -0.5em; font-size: 0.7em;">&Dagger;</span>'; // Start with BB. Is only in the visual list. Will not be deployed.
 $i = 0; $x = count( $localInfo['activePlugins'] );
 foreach( (array)$localInfo['activePlugins'] as $index => $localPlugin ) {
 	if ( 0 == $i ) {

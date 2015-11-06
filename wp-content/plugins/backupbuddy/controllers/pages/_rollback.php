@@ -28,10 +28,10 @@ function pb_status_undourl( undo_url ) {
 
 
 <?php
-echo '<div id="pb_backupbuddy_status_wrap">';
-echo pb_backupbuddy::status_box( 'Starting rollback process . . .' );
-echo '</div>';
 global $wp_version;
+echo '<div id="pb_backupbuddy_status_wrap">';
+echo pb_backupbuddy::status_box( 'Starting rollback process with BackupBuddy v' . pb_backupbuddy::settings( 'version' ) . ' using WordPress v' . $wp_version . ' on ' . PHP_OS . '...' );
+echo '</div>';
 pb_backupbuddy::status( 'details', 'BackupBuddy v' . pb_backupbuddy::settings( 'version' ) . ' using WordPress v' . $wp_version . ' on ' . PHP_OS . '.' );
 ?>
 

@@ -9,6 +9,12 @@ wp_enqueue_script( 'thickbox' );
 wp_print_scripts( 'thickbox' );
 wp_print_styles( 'thickbox' );
 
+wp_enqueue_script( 'jquery-ui-core' );
+wp_print_styles( 'jquery-ui-core' );
+
+wp_enqueue_script( 'jquery-ui-progressbar' );
+wp_print_styles( 'jquery-ui-progressbar' );
+
 //pb_backupbuddy::disalert( 'backup_stash_advert', 'Active BackupBuddy customers already have a <b>BackupBuddy Stash</b> account with <span class="pb_label pb_label">1 GB Free Storage</span>. Just login on the <a href="?page=pb_backupbuddy_destinations">Remote Destinations</a> page.' );
 ?>
 
@@ -50,6 +56,13 @@ wp_print_styles( 'thickbox' );
 	
 	
 	jQuery(document).ready(function() {
+		
+		
+		jQuery( '.backupbuddy-progressbar' ).each( function(){
+			percentDone = jQuery(this).attr( 'data-percent' );
+			jQuery(this).progressbar( { value: parseInt( percentDone, 10 ) } );
+			jQuery(this).find( '.backupbuddy-progressbar-label' ).text( percentDone + ' %' );
+		});
 		
 		
 		jQuery( '#backupbuddy-deployment-regenerateKey' ).click( function(e){
@@ -123,7 +136,7 @@ pb_backupbuddy::$ui->title( __( 'Remote Destinations', 'it-l10n-backupbuddy' ) .
 		<form method="post">
 			<?php pb_backupbuddy::nonce(); ?>
 			<input type="hidden" name="regenerate_api_key" value="1">
-				<h3 style="margin-top: 0;"><?php _e( 'Deployment Key (BETA)', 'it-l10n-backupbuddy' ); ?></h3>
+				<h3 style="margin-top: 0;"><?php _e( 'Deployment Key', 'it-l10n-backupbuddy' ); ?></h3>
 				<p>
 					Copy this Deployment Key into the other BackupBuddy Site you wish to have access to Push to or Pull from this site.
 				</p>
@@ -141,7 +154,7 @@ pb_backupbuddy::$ui->title( __( 'Remote Destinations', 'it-l10n-backupbuddy' ) .
 		<br><br>
 		<button class="button button-primary" style="vertical-align: 1px;" onClick="jQuery('.backupbuddy_api_wpconfig-hide').toggle(); jQuery(this).hide(); return false;"><?php _e( 'Enable Deployment', 'it-l10n-backupbuddy' ); ?></button>
 		<span class="backupbuddy_api_wpconfig-hide" style="display: none;">
-			<b>For added security you must manually <i>add the following to your wp-config.php</i> file to enable. <i>Refresh this page after adding</i> the following:</b>
+			<b>For added security you must manually enable the API. To do this <i>add the following to your wp-config.php file ABOVE the line commenting "That's all, stop editing!"</i>. <i>Refresh this page after adding</i> the following:</b>
 			<br>
 <textarea style="width: 100%; padding: 15px;" readonly="readonly" onClick="this.focus();this.select();">
 define( 'BACKUPBUDDY_API_ENABLE', true ); // Enable BackupBuddy Deployment access.

@@ -3,7 +3,7 @@ class Auth {
 	
 	const MAX_LOGIN_ATTEMPTS_ALLOWED = 4; // Maximum number of invalid login attempts before locking importbuddy.
 	const RESET_DEFAULTS_ON_INVALID_LOGIN = false; // Whether or not reset all settings/options back to defaults on login failure.
-	const COOKIE_EXPIRATION = 3600; // Number of seconds an importbuddy cookie is valid for.
+	const COOKIE_EXPIRATION = 86400; // Number of seconds an importbuddy cookie is valid for.
 	private static $_authenticated = false; // Whether user is validly authenticated or not.
 	private static $_checked = false; // Whether check() has been run yet.
 	

@@ -35,7 +35,7 @@ if ( 'pull' == $direction ) { // Local so clean up here.
 		die( $message );
 	} else {
 		if ( false === ( $response = json_decode( $response, true ) ) ) {
-			$message = 'Error #239872373. Unable to decode remote deployment response with serial `' . $serial . '` via remote API. Server response: `' . print_r( $response ) . '`.';
+			$message = 'Error #239872373. Unable to decode remote deployment response with serial `' . $serial . '` via remote API. Remote server response: `' . print_r( $response ) . '`.';
 			pb_backupbuddy::status( 'error', $message );
 			die( $message );
 		}

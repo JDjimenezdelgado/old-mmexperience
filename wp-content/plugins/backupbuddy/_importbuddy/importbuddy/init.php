@@ -34,8 +34,8 @@ $pluginbuddy_settings = array(
 				'default_state_overrides'	=>		array(), // Default state to override the main defaults. Good for automating imports. Applied over defaults during construction of restore class.
 				'default_options'			=>		array(
 														'bb_version'				=>	PB_BB_VERSION,	// BB version to be filled in on download.
-														'log_level'					=>	'3',						// Level of error logging. ImportBuddy ALWAYS logs at level 3 (everything).
 														'backup_directory'			=>	'',
+														'log_level'					=>	0, // No longer using this method for handling logging. status() method always logs all if importbuddy.
 													),
 				'modules'					=>		array(
 														'updater'				=>	false,						// Load PluginBuddy automatic upgrades.

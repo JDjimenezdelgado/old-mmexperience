@@ -2,6 +2,9 @@
 // @author Dustin Bolton 2013.
 // Incoming variables: $destination
 
+if ( isset( $destination['disabled'] ) && ( '1' == $destination['disabled'] ) ) {
+	die( __( 'This destination is currently disabled based on its settings. Re-enable it under its Advanced Settings.', 'it-l10n-backupbuddy' ) );
+}
 ?>
 
 
@@ -148,15 +151,7 @@ foreach( $response->body->Contents as $object ) {
 	
 	$last_modified = strtotime( $object->LastModified );
 	$size = (double) $object->Size;
-	if ( stristr( $file, '-db-' ) !== FALSE ) {
-		$backup_type = 'Database';
-	} elseif ( stristr( $file, '-full-' ) !== FALSE ) {
-		$backup_type = 'Full';
-	} elseif( $file == 'importbuddy.php' ) {
-		$backup_type = 'ImportBuddy Tool';
-	} else {
-		$backup_type = 'Unknown';
-	}
+	$backup_type = backupbuddy_core::getBackupTypeFromFile( $file );
 	
 	// Generate array of table rows.
 	while( isset( $backup_list_temp[$last_modified] ) ) { // Avoid collisions.
@@ -170,7 +165,7 @@ foreach( $response->body->Contents as $object ) {
 		pb_backupbuddy::$format->time_ago( $last_modified ) .
 		' ago)</span>',
 		pb_backupbuddy::$format->file_size( $size ),
-		$backup_type
+		backupbuddy_core::pretty_backup_type( $backup_type )
 	);
 
 }

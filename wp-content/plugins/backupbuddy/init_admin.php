@@ -162,7 +162,7 @@ if ( is_multisite() && backupbuddy_core::is_network_activated() && !defined( 'PB
 			}
 			
 			//pb_backupbuddy::add_page( '', 'getting_started', array( pb_backupbuddy::settings( 'name' ), 'Getting Started' . $export_note ), $capability );
-			pb_backupbuddy::add_page( '', 'multisite_export', $export_title, $capability, $icon );
+			pb_backupbuddy::add_page( '', 'multisite_export', array( pb_backupbuddy::settings( 'name' ), $export_title ), $capability, $icon );
 			pb_backupbuddy::add_page( 'multisite_export', 'malware_scan', __( 'Malware Scan', 'it-l10n-backupbuddy' ), $capability );
 		}
 		
@@ -216,7 +216,7 @@ function pb_backupbuddy_contextual_help( $contextual_help, $screen_id, $screen )
 					<br>
 					<a href="http://ithemes.com/codex/" target="_blank">' . __( 'Knowledge Base & Tutorials', 'it-l10n-backupbuddy' ) . '</a>
 					<br>
-					<a href="http://ithemes.com/support/" target="_blank"><b>' . __( 'Support Forum', 'it-l10n-backupbuddy' ) . '</b></a>
+					<a href="http://ithemes.com/support/" target="_blank"><b>' . __( 'Support', 'it-l10n-backupbuddy' ) . '</b></a>
 				</p>',
 	));
 	

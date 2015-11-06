@@ -10,7 +10,7 @@ $echoNotWrite = $echo;
 pb_backupbuddy::set_status_serial( $serial );
 
 if ( true == get_transient( 'pb_backupbuddy_stop_backup-' . $serial ) ) {
-	pb_backupbuddy::status( 'message', 'Backup STOPPED. Post backup cleanup step has been scheduled to clean up any temporary files.', $serial );
+	pb_backupbuddy::status( 'message', 'Backup STOPPED by user. Post backup cleanup step has been scheduled to clean up any temporary files.', $serial );
 	
 	require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
 	$fileoptions_file = backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt';
@@ -36,7 +36,7 @@ if ( true == get_transient( 'pb_backupbuddy_stop_backup-' . $serial ) ) {
 	// NOTE: fileoptions file will be wiped by periodic cleanup. We need to keep this for now...
 	
 	delete_transient( 'pb_backupbuddy_stop_backup-' . $serial );
-	pb_backupbuddy::status( 'details', 'Backup stopped. Any remaining processes or files will time out and be cleaned up by scheduled housekeeping functionality.', $serial );
+	pb_backupbuddy::status( 'details', 'Backup stopped by user. Any remaining processes or files will time out and be cleaned up by scheduled housekeeping functionality.', $serial );
 	pb_backupbuddy::status( 'haltScript', '', $serial ); // Halt JS on page.
 }
 
@@ -294,7 +294,6 @@ if ( ( $serial == '' ) || ( ! is_array( $backup ) ) ) {
 	if ( '' != $backup['deployment_log'] ) {
 		echo "\nSTART_DEPLOY\n";
 		if ( 'push' == $backup['deployment_direction'] ) { // *** PUSH
-			
 			$response = wp_remote_get(
 				$backup['deployment_log'],
 				array(
@@ -315,23 +314,36 @@ if ( ( $serial == '' ) || ( ! is_array( $backup ) ) ) {
 				if ( '200' == $response['response']['code'] ) {
 					//error_log( print_r( $response, true ) );
 					echo $response['body'];
+					if ( '' == $response['body'] ) {
+						echo 'Warning #8003e: Nothing returned. This may be normal.';
+					}
 				} elseif ( '404' == $response['response']['code'] ) {
 					// do nothing
+					$message = 'Warning #8003b: 404 retrieving remote log (PUSH) `' . $backup['deployment_log'] . '`. This may or may not be normal.';
+					pb_backupbuddy::status( 'warning', $message, $serial );
+					echo $message;
 				} else {
-					pb_backupbuddy::status( 'error', 'Error #58947954. Could not retrieve remote deployment log. Response code: `' . $response['response']['code'] . '`.', $serial );
+					$message = 'Error #58947954. Could not retrieve remote deployment log. Response code: `' . $response['response']['code'] . '`.';
+					pb_backupbuddy::status( 'error', $message, $serial );
+					echo $message;
 				}
 			}
 			
 		} elseif ( 'pull' == $backup['deployment_direction'] ) { // *** PULL
-			
 			if ( false === strpos( $backup['deployment_log'], 'http' ) ) { // Get log via API using serial.
 				
 				require_once( pb_backupbuddy::plugin_path() . '/classes/remote_api.php' );
 				
 				if ( false === ( $response = backupbuddy_remote_api::remoteCall( $backup['deployment_destination'], 'getBackupStatus', array( 'serial' => $backup['deployment_log'] ), 10, null, null, null, null, null, null, null, $returnRaw = true ) ) ) {
-					pb_backupbuddy::status( 'error', 'Error #783283378. Unable to get remove backup status log with serial `' . $backup['deployment_log'] . '` via remote API.', $serial );
+					$message = 'Error #783283378. Unable to get remove backup status log with serial `' . $backup['deployment_log'] . '` via remote API.';
+					pb_backupbuddy::status( 'error', $message, $serial );
+					echo $message;
 				} else {
-					echo $response;
+					if ( '' == $response ) {
+						echo 'Warning #8003c: Nothing returned. This may be normal.';
+					} else {
+						echo $response;
+					}
 					
 					// Check if remote backup has reported it finished. If so then we need to set it locally that it is done.
 					if ( false !== strpos( $response, 'finish_deploymentPullBackup' ) ) {
@@ -340,7 +352,6 @@ if ( ( $serial == '' ) || ( ! is_array( $backup ) ) ) {
 				}
 			
 			} else { // get log from URL
-				
 				$response = wp_remote_get(
 					$backup['deployment_log'],
 					array(
@@ -354,17 +365,27 @@ if ( ( $serial == '' ) || ( ! is_array( $backup ) ) ) {
 						'cookies' => array()
 					)
 				);
+				error_log( 'remote_got' . print_r( $response, true ) );
 				if( is_wp_error( $response ) ) { // Loopback failed. Some kind of error.
 					$error = $response->get_error_message();
-					pb_backupbuddy::status( 'error', 'Error retrieving remote deployment log. Details: `' . $error . '`.', $serial );
+					$message = 'Error retrieving remote deployment log. Details: `' . $error . '`.';
+					pb_backupbuddy::status( 'error', $message, $serial );
+					echo $message;
 				} else {
 					if ( '200' == $response['response']['code'] ) {
-						//error_log( print_r( $response, true ) );
 						echo $response['body'];
+						if ( '' == $response['body'] ) {
+							echo 'Warning #8003d: Nothing returned. This may be normal.';
+						}
 					} elseif ( '404' == $response['response']['code'] ) {
 						// do nothing
+						$message = 'Warning #8003a: 404 retrieving remote log (PULL) `' . $backup['deployment_log'] . '`. This may or may not be normal.';
+						pb_backupbuddy::status( 'warning', $message, $serial );
+						echo $message;
 					} else {
-						pb_backupbuddy::status( 'error', 'Error retrieving remote deployment log. Response code: `' . $response['response']['code'] . '`.', $serial );
+						$message = 'Error retrieving remote deployment log. Response code: `' . $response['response']['code'] . '`.';
+						pb_backupbuddy::status( 'error', $message, $serial );
+						echo $message;
 					}
 				}
 				
@@ -372,7 +393,9 @@ if ( ( $serial == '' ) || ( ! is_array( $backup ) ) ) {
 			
 		} else { // *** UNKNOWN
 			
-			pb_backupbuddy::status( 'error', 'Error #272823443: Deployment log set but direction missing.', $serial );
+			$message = 'Error #272823443: Deployment log set but direction missing.';
+			pb_backupbuddy::status( 'error', $message, $serial );
+			echo $message;
 			
 		}
 		echo "\nEND_DEPLOY\n";

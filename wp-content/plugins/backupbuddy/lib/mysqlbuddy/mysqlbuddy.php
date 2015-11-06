@@ -7,6 +7,7 @@
  *	Dumps a mysql database (all tables, tables with a certain prefix, or none) with additional inclusions/exclusions of tables possible.
  *	Automatically determines available dump methods (unless method is forced). Runs methods in order of preference. Falls back automatically
  *	to any `lesser` methods if any fail.
+ *	Both dump and import support both PHP-based and command line methods. PHP-based is preferred since it supports chunking and bursting.
  *
  *	Requirements:
  *
@@ -53,6 +54,10 @@ class pb_backupbuddy_mysqlbuddy {
 	private $_default_mysql_directories = array( '/usr/bin/', '/usr/bin/mysql/', '/usr/local/bin/' );	// If mysql tells us where its installed we prepend to this. Beginning and trailing slashes.
 	private $_mysql_directory = '';																		// Tested working mysql directory to use for actual dump.
 	private $_commandbuddy;
+	
+	private $_incoming_sql_version = '';																// Version of the mysql server that dumped this SQL. Handle workarounds of SQL syntax changes.
+	private $_current_sql_version = '';																	// Version of the mysql server running locally, calculated on construct.
+	private $_hotfix_7001 = false;																		// Whether or not to migrate SQL syntax for incoming mysql < v5.1 when importing to mysql 5.1+.
 	
 	private $_maxExecutionTime = '';
 	private $_max_rows_per_select = 1000;
@@ -160,8 +165,29 @@ class pb_backupbuddy_mysqlbuddy {
 			pb_backupbuddy::status( 'details', 'If applicable, breaking up with max execution time `' . $this->_maxExecutionTime . '` seconds.' );
 		}
 		
+		global $wpdb;
+		$this->_current_sql_version = $wpdb->db_version();
+		pb_backupbuddy::status( 'details', 'This server\'s mysql version: `' . $this->_current_sql_version . '`.' );
+		
 	} // End __construct().
 	
+	
+	
+	/* set_incoming_sql_version()
+	 *
+	 * Set the mysql version which creating the SQL file(s) we will be importing.
+	 *
+	 */
+	public function set_incoming_sql_version( $version ) {
+		$this->_incoming_sql_version = $version;
+		pb_backupbuddy::status( 'details', 'Set incoming SQL mysql version to `' . $this->_incoming_sql_version . '`.' );
+		
+		if ( version_compare( $this->_incoming_sql_version, '5.1.0', '<' ) && version_compare( $this->_current_sql_version, '5.1.0', '>=' ) ) {
+			pb_backupbuddy::status( 'warning', 'Error #7001: This server\'s mysql version, `' . $this->_current_sql_version . '` may have SQL query incompatibilities with the backup mysql version `' . $this->_incoming_sql_version . '`. This may result in #9010 errors due to syntax of TYPE= changing to ENGINE=. If none occur you may ignore this error.' );
+			$this->_hotfix_7001 = true;
+			pb_backupbuddy::status( 'details', 'Enabling hotfix #7001 to replace TYPE= with ENGINE= in SQL syntax.' );
+		}
+	} // End set_incoming_sql_version().
 	
 	
 	/* force_single_db_file()
@@ -394,6 +420,13 @@ class pb_backupbuddy_mysqlbuddy {
 		if ( '' != $this->_database_port ) {
 			$command .= " --port={$this->_database_port}";
 			pb_backupbuddy::status( 'details', 'mysqlbuddy: Using custom port `' . $this->_database_port . '` based on DB_HOST setting.' );
+		}
+		
+		// Set default charset if available.
+		global $wpdb;
+		if ( isset( $wpdb ) ) {
+			pb_backupbuddy::status( 'details', 'wpdb charset override for commandline: ' . $wpdb->charset );
+			$command .= " --default-character-set=" . $wpdb->charset;
 		}
 		
 		// TODO WINDOWS NOTE: information in the MySQL documentation about mysqldump needing to use --result-file= on Windows to avoid some issue with line endings.
@@ -875,8 +908,15 @@ class pb_backupbuddy_mysqlbuddy {
 			pb_backupbuddy::status( 'details', 'mysqlbuddy: Using sockets in command.' );
 		}
 		
+		// Set default charset if available.
+		global $wpdb;
+		if ( isset( $wpdb ) ) {
+			pb_backupbuddy::status( 'details', 'wpdb charset override for commandline: ' . $wpdb->charset );
+			$command .= " --default-character-set=" . $wpdb->charset;
+		}
+		
 		//$command .= " --host={$this->_database_host} --user={$this->_database_user} --password={$this->_database_pass} --default_character_set utf8 {$this->_database_name} < {$sql_file}";
-		$command .= " --host=" . escapeshellarg($this->_database_host) . " --user=" . escapeshellarg($this->_database_user) . " --password=" . escapeshellarg($this->_database_pass) . " --default_character_set utf8 " . escapeshellarg($this->_database_name) . " 2>&1 < {$sql_file}"; // 2>&1 redirect STDERR to STDOUT.
+		$command .= " --host=" . escapeshellarg($this->_database_host) . " --user=" . escapeshellarg($this->_database_user) . " --password=" . escapeshellarg($this->_database_pass) . " " . escapeshellarg($this->_database_name) . " 2>&1 < {$sql_file}"; // 2>&1 redirect STDERR to STDOUT.
 		/********** End preparing command **********/
 		
 		// Run command.
@@ -1025,11 +1065,15 @@ class pb_backupbuddy_mysqlbuddy {
 			$query = preg_replace( "/^($query_operators)(\s+`?)$old_prefix/i", "\${1}\${2}$new_prefix", $query ); // 4-29-11
 		}
 		
-		// Output which table we are able to create to help get an idea where we are in the import.
+		// This is a table creation line. Output which table we are able to create to help get an idea where we are in the import. Also possibly handle hotfix Error #7001.
 		if ( 1 == preg_match( "/^CREATE TABLE `?((\w|-)+)`?/i", $query, $matches ) ) {
 			pb_backupbuddy::status( 'details', 'Creating table `' . $matches[1] . '`.' );
 			if ( defined( 'PB_IMPORTBUDDY' ) ) {
 				echo "<script>bb_action( 'importingTable', '" . $matches[1] . "' );</script>";
+			}
+			
+			if ( true === $this->_hotfix_7001 ) {
+				$query = str_ireplace( 'TYPE=', 'ENGINE=', $query );
 			}
 		}
 		
@@ -1038,6 +1082,7 @@ class pb_backupbuddy_mysqlbuddy {
 		// Run the query
 		$results = $wpdb->query( $query );
 		
+		// Handle results of running query.
 		if ( false === $results ) {
 			if ( $ignore_existing !== true ) {
 				$mysql_error = @mysql_error( $wpdb->dbh );

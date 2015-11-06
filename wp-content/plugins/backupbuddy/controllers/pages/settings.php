@@ -20,7 +20,7 @@
 		);
 		
 		
-		jQuery( '.nav-tab-2' ).click( function(){
+		jQuery( '.bb-tab-other' ).click( function(){
 			jQuery.post( '<?php echo pb_backupbuddy::ajax_url( 'getMainLog' ); ?>', { }, 
 				function(data) {
 					//data = jQuery.trim( data );
@@ -76,6 +76,7 @@ if ( pb_backupbuddy::_POST( 'reset_defaults' ) != '' ) {
 	if ( call_user_func(  'pb_backupbuddy::reset_options', true ) === true ) {
 		backupbuddy_core::verify_directories( $skipTempGeneration = true ); // Re-verify directories such as backup dir, temp, etc.
 		//pb_backupbuddy::alert( 'Plugin settings have been reset to defaults.' );
+		backupbuddy_core::addNotification( 'settings_reset', 'Plugin settigns reset', 'All plugin settings have been reset to defaults.' );
 	} else {
 		pb_backupbuddy::alert( 'Unable to reset plugin settings. Verify you are running the latest version.' );
 	}
@@ -176,7 +177,7 @@ if ( pb_backupbuddy::_POST( 'pb_backupbuddy_importbuddy_pass_hash' ) != pb_backu
 
 
 
-/* BEGIN REPLACING IMPORTBUDDY/REPAIRBUDDY_PASS_HASH WITH VALUE OF ACTUAL HASH */
+/* BEGIN REPLACING IMPORTBUDDY WITH VALUE OF ACTUAL HASH */
 if ( isset( $_POST['pb_backupbuddy_importbuddy_pass_hash'] ) && ( '' == $_POST['pb_backupbuddy_importbuddy_pass_hash'] ) ) { // Clear out length if setting to blank.
 	pb_backupbuddy::$options['importbuddy_pass_length'] = 0;
 	pb_backupbuddy::$options['importbuddy_pass_hash'] = ''; // Clear out hash when emptying.

@@ -3,21 +3,21 @@
             color: #34495E;
         }
         .vcht_chat .palette-turquoise,.btn-primary,.btn-primary:hover,.btn-primary:active {
-            background-color: #1ABC9C;
+            background-color: #e6a159;
             color: #FFFFFF;
         }
         .vcht_chat .bubble_right .bubble_arrow {
-            border-color: transparent transparent transparent #1ABC9C;
+            border-color: transparent transparent transparent #e6a159;
         }
         .vcht_chat .palette-clouds {
             background-color: #ECF0F1;
             color: #bdc3c7;
         }
         .vcht_chat .form-control:focus {
-            border-color: #1ABC9C;    
+            border-color: #e6a159;    
         }
         .vcht_chat .anim {
-            background: none repeat scroll 0 0 #1ABC9C;
+            background: none repeat scroll 0 0 #e6a159;
         }
         .vcht_chat .btn-default,.btn-default:hover,.btn-default:active {
             background-color: #CACFD2;
@@ -29,10 +29,10 @@
             border-color: transparent #ECF0F1 transparent transparent;            
         }
         .vcht_selectedDom {
-            -moz-box-shadow: 0px 0px 40px 0px #1ABC9C ;
-            -webkit-box-shadow: 0px 0px 40px 0px #1ABC9C ;
-            -o-box-shadow: 0px 0px 40px 0px #1ABC9C ;
-            box-shadow: 0px 0px 40px 0px #1ABC9C ;
+            -moz-box-shadow: 0px 0px 40px 0px #e6a159 ;
+            -webkit-box-shadow: 0px 0px 40px 0px #e6a159 ;
+            -o-box-shadow: 0px 0px 40px 0px #e6a159 ;
+            box-shadow: 0px 0px 40px 0px #e6a159 ;
         }
         .nicescroll-rails > div {
             background-color: #CACFD2 !important;
@@ -43,46 +43,46 @@
 
         @-o-keyframes glow {
             0% {
-                -o-box-shadow: 0px 0px 10px 0px #1ABC9C;
+                -o-box-shadow: 0px 0px 10px 0px #e6a159;
             }
             50% {
-                -o-box-shadow: 0px 0px 40px 0px #1ABC9C;        
+                -o-box-shadow: 0px 0px 40px 0px #e6a159;        
             }
             100% {
-                -o-box-shadow: 0px 0px 10px 0px #1ABC9C;
+                -o-box-shadow: 0px 0px 10px 0px #e6a159;
             }
         }
         @-moz-keyframes glow {
             0% {
-                -moz-box-shadow: 0px 0px 10px 0px #1ABC9C;
+                -moz-box-shadow: 0px 0px 10px 0px #e6a159;
             }
             50% {
-                -moz-box-shadow: 0px 0px 40px 0px #1ABC9C;        
+                -moz-box-shadow: 0px 0px 40px 0px #e6a159;        
             }
             100% {
-                -moz-box-shadow: 0px 0px 10px 0px #1ABC9C;
+                -moz-box-shadow: 0px 0px 10px 0px #e6a159;
             }
         }
         @-webkit-keyframes glow {
             0% {
-                -webkit-box-shadow: 0px 0px 10px 0px #1ABC9C;
+                -webkit-box-shadow: 0px 0px 10px 0px #e6a159;
             }
             50% {
-                -webkit-box-shadow: 0px 0px 40px 0px #1ABC9C;        
+                -webkit-box-shadow: 0px 0px 40px 0px #e6a159;        
             }
             100% {
-                -webkit-box-shadow: 0px 0px 10px 0px #1ABC9C;
+                -webkit-box-shadow: 0px 0px 10px 0px #e6a159;
             }
         }
         @keyframes glow {
             0% {
-                box-shadow: 0px 0px 10px 0px #1ABC9C ;
+                box-shadow: 0px 0px 10px 0px #e6a159 ;
             }
             50% {
-                box-shadow: 0px 0px 40px 0px #1ABC9C ;        
+                box-shadow: 0px 0px 40px 0px #e6a159 ;        
             }
             100% {
-                box-shadow: 0px 0px 10px 0px #1ABC9C ;
+                box-shadow: 0px 0px 10px 0px #e6a159 ;
             }
         }
         

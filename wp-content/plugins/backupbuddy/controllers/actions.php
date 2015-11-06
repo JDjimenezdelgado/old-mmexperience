@@ -57,10 +57,10 @@ class pb_backupbuddy_actions extends pb_backupbuddy_actionscore {
 			pb_backupbuddy::$options['schedules'][$cron_id]['last_run'] = time(); // update last run time.
 			pb_backupbuddy::save();
 			
-			if ( !isset( pb_backupbuddy::$classes['backup'] ) ) {
-				require_once( pb_backupbuddy::plugin_path() . '/classes/backup.php' );
-				pb_backupbuddy::$classes['backup'] = new pb_backupbuddy_backup();
-			}
+			
+			require_once( pb_backupbuddy::plugin_path() . '/classes/backup.php' );
+			$newBackup = new pb_backupbuddy_backup();
+			
 			
 			if ( pb_backupbuddy::$options['schedules'][$cron_id]['delete_after'] == '1' ) {
 				$delete_after = true;
@@ -113,7 +113,7 @@ class pb_backupbuddy_actions extends pb_backupbuddy_actionscore {
 			
 			$profile_array = pb_backupbuddy::$options['profiles'][ pb_backupbuddy::$options['schedules'][$cron_id]['profile'] ];
 			
-			if ( pb_backupbuddy::$classes['backup']->start_backup_process( $profile_array, 'scheduled', array(), $post_backup_steps, pb_backupbuddy::$options['schedules'][$cron_id]['title'] ) !== true ) {
+			if ( $newBackup->start_backup_process( $profile_array, 'scheduled', array(), $post_backup_steps, pb_backupbuddy::$options['schedules'][$cron_id]['title'] ) !== true ) {
 				pb_backupbuddy::status( 'error', 'Error #4564658344443: Backup failure. See earlier logging details for more information.' );
 			}
 		}

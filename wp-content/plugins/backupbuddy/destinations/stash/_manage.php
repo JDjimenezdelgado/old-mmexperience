@@ -1,6 +1,9 @@
 <?php
 // @author Dustin Bolton 2012.
 // Incoming variables: $destination
+if ( isset( $destination['disabled'] ) && ( '1' == $destination['disabled'] ) ) {
+	die( __( 'This destination is currently disabled based on its settings. Re-enable it under its Advanced Settings.', 'it-l10n-backupbuddy' ) );
+}
 
 $stash_allfiles_access_timelimit = 60*60*1; // Time, in seconds, to store transient allowing user access to all files in Stash once they have logged in.
 ?>
@@ -249,7 +252,7 @@ echo '
 <a href="http://ithemes.com/member/cart.php?action=add&id=290" target="_blank" style="text-decoration: none; font-weight: 600; font-size: 1.1em;">+ 10GB</a>, &nbsp;
 <a href="http://ithemes.com/member/cart.php?action=add&id=290" target="_blank" style="text-decoration: none; font-weight: 800; font-size: 1.2em;">+ 25GB</a>
 &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
-<a href="http://ithemes.com/member/panel/stash.php" target="_blank" style="text-decoration: none;"><b>Manage Files & Account</b></a>
+<a href="https://sync.ithemes.com/stash/" target="_blank" style="text-decoration: none;"><b>Manage Files & Account</b></a>
 ';
 echo '<br><br></div>';
 

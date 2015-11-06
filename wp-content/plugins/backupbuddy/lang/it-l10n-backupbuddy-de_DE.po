@@ -6777,7 +6777,7 @@ msgstr ""
 
 #. Author of the plugin/theme
 msgid "iThemes"
-msgstr "iTemes"
+msgstr "iThemes"
 
 #. Author URI of the plugin/theme
 msgid "http://ithemes.com/"

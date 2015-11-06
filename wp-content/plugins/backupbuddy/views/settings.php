@@ -83,6 +83,14 @@ if ( is_numeric( pb_backupbuddy::_GET( 'tab' ) ) ) {
 } else {
 	$active_tab = 0;
 }
+
+if ( is_network_admin() ) {
+	$license_url = network_admin_url( 'settings.php' );
+} else {
+	$license_url = admin_url( 'options-general.php' );
+}
+$license_url .= '?page=ithemes-licensing';
+
 pb_backupbuddy::$ui->start_tabs(
 	'settings',
 	array(
@@ -97,6 +105,11 @@ pb_backupbuddy::$ui->start_tabs(
 			'css'		=>		'margin-top: -11px;',
 		),
 		array(
+			'title'		=>		__( 'Recent Activity', 'it-l10n-backupbuddy' ),
+			'slug'		=>		'activity',
+			'css'		=>		'margin-top: -11px;',
+		),
+		array(
 			'title'		=>		__( 'Other', 'it-l10n-backupbuddy' ),
 			'slug'		=>		'other',
 			'css'		=>		'margin-top: -11px;',
@@ -104,7 +117,7 @@ pb_backupbuddy::$ui->start_tabs(
 		array(
 			'title'		=>		__( 'Licensing', 'it-l10n-backupbuddy' ),
 			'slug'		=>		'licensing',
-			'url'		=>		'options-general.php?page=ithemes-licensing',
+			'url'		=>		$license_url,
 			'css'		=>		'float: right; margin-top: -2px; font-style: italic;',
 		),
 	),
@@ -122,6 +135,10 @@ pb_backupbuddy::$ui->end_tab();
 
 pb_backupbuddy::$ui->start_tab( 'advanced' );
 require_once( 'settings/_advanced.php' );
+pb_backupbuddy::$ui->end_tab();
+
+pb_backupbuddy::$ui->start_tab( 'activity' );
+require_once( 'settings/_activity.php' );
 pb_backupbuddy::$ui->end_tab();
 
 pb_backupbuddy::$ui->start_tab( 'other' );

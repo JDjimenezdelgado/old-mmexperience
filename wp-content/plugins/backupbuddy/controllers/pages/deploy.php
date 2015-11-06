@@ -39,6 +39,7 @@ if ( '1' == pb_backupbuddy::_POST( 'regenerate_api_key' ) ) {
 <br><br>
 
 <?php
+/*
 pb_backupbuddy::$options['deployments'] = array(
 	array( 'siteurl' => 'http://backupbuddy2', 'api_key' => 'xxx' )
 );
@@ -54,6 +55,9 @@ if ( pb_backupbuddy::_GET( 'deployment' ) == '' ) {
 	}
 	return;
 }
+*/
+
+
 $deployment_id = pb_backupbuddy::_GET( 'deployment' );
 ?>
 

@@ -161,7 +161,7 @@ function pb_backupbuddy_get_loadavg() {
 		// If on DEV system (.git dir exists) then append some details on current.
 		if ( @file_exists( pb_backupbuddy::plugin_path() . '/.git/logs/HEAD' ) ) {
 			$commit_log = escapeshellarg( pb_backupbuddy::plugin_path() . '/.git/logs/HEAD' );
-			$commit_line = exec( "tail -n 1 {$commit_log}" );
+			$commit_line = str_replace( '\'', '`', exec( "tail -n 1 {$commit_log}" ) );
 			$version_string .= ' <span style="display: inline-block; max-width: 250px; font-size: 8px;">[DEV: ' . $commit_line . ']</span>';
 		}
 		$parent_class_test = array(
@@ -198,12 +198,14 @@ function pb_backupbuddy_get_loadavg() {
 		global $wpdb;
 		$parent_class_test = array(
 						'title'			=>		'MySQL Version',
-						'suggestion'	=>		'>= 5.0.15',
+						'suggestion'	=>		'>= 5.5.0',
 						'value'			=>		$wpdb->db_version(),
 						'tip'			=>		__('Version of your database server (mysql) as reported to this script by WordPress.', 'it-l10n-backupbuddy' ),
 					);
 		if ( version_compare( $wpdb->db_version(), '5.0.15', '<=' ) ) {
 			$parent_class_test['status'] = __('FAIL', 'it-l10n-backupbuddy' );
+		} elseif ( version_compare( $wpdb->db_version(), '5.5.0', '<=' ) ) {
+			$parent_class_test['status'] = __('WARNING', 'it-l10n-backupbuddy' );
 		} else {
 			$parent_class_test['status'] = __('OK', 'it-l10n-backupbuddy' );
 		}

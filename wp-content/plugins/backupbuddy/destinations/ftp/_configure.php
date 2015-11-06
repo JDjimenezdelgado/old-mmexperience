@@ -209,3 +209,14 @@ if ( $mode !== 'edit' ) {
 		'row_class'	=>		'advanced-toggle',
 	) );
 }
+$settings_form->add_setting( array(
+	'type'		=>		'checkbox',
+	'name'		=>		'disabled',
+	'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+	'title'		=>		__( 'Disable destination', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__( '[Default: unchecked] - When checked, this destination will be disabled and unusable until re-enabled. Use this if you need to temporary turn a destination off but don\t want to delete it.', 'it-l10n-backupbuddy' ),
+	'css'		=>		'',
+	'after'		=>		'<span class="description"> ' . __('Check to disable this destination until re-enabled.', 'it-l10n-backupbuddy' ) . '</span>',
+	'rules'		=>		'',
+	'row_class'	=>		'advanced-toggle',
+) );

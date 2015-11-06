@@ -191,7 +191,7 @@ function jetpack_og_get_image( $width = 200, $height = 200, $max_images = 4 ) { 
 
 	// Second fall back, blank image
 	if ( empty( $image ) ) {
-		$image[] = "nbhgj";
+		$image[] = "http://www.mmexperiencecr.com/wp-content/uploads/2015/04/logoHome-e1436845276360.png";
 	}
 
 	return $image;

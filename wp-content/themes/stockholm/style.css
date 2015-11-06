@@ -8,3 +8,15 @@ License URI: licence/GPL.txt
 CSS changes can be made in files in the /css/ folder. This is a placeholder file required by WordPress, so do not delete it.
 
 */
+.woocommerce ul.products li.product .add-to-cart-button-outer{
+display: none !important;
+}
+.woocommerce ul.products li.product:hover .image-wrapper img{
+opacity: .6 !important;
+}
+.summary.entry-summary form.cart{
+display: none !important;
+}
+.q_tabs.boxed.woocommerce-tabs li.active a, iframe #chatHeader{
+    background-color: #e6a159 !important;
+}

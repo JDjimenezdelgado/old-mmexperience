@@ -21,7 +21,7 @@ if ( ! defined( 'PB_IMPORTBUDDY' ) || ( true !== PB_IMPORTBUDDY ) ) {
 			var backupbuddy_errors_encountered = 0; // number of errors sent via log.
 			
 			function pb_status_append( json ) {
-				if( 'undefined' === typeof statusBox ) { // No status box yet so may need to create it.
+				if ( 'undefined' === typeof statusBox ) { // No status box yet so may need to create it.
 					statusBox = jQuery( '#backupbuddy_messages' );
 					if( statusBox.length == 0 ) { // No status box yet so suppress.
 						return;
@@ -62,6 +62,12 @@ if ( ! defined( 'PB_IMPORTBUDDY' ) || ( true !== PB_IMPORTBUDDY ) ) {
 			
 			// Used in BackupBuddy _backup-perform.php and ImportBuddy _header.php and _rollback.php
 			function backupbuddy_log( json, classType ) {
+				if ( 'undefined' === typeof statusBox ) { // No status box yet so may need to create it.
+					statusBox = jQuery( '#backupbuddy_messages' );
+					if( statusBox.length == 0 ) { // No status box yet so suppress.
+						return;
+					}
+				}
 				
 				message = '';
 				
@@ -267,6 +273,7 @@ if ( ! defined( 'PB_IMPORTBUDDY' ) || ( true !== PB_IMPORTBUDDY ) ) {
 				width: 100%;
 				margin: 0;
 				box-sizing: border-box;
+				resize: both;
 			}
 			.backupbuddy_log_error {
 				color: red;
@@ -314,7 +321,7 @@ if ( ! defined( 'PB_IMPORTBUDDY' ) || ( true !== PB_IMPORTBUDDY ) ) {
 						echo 'href="?page=dbreplace">Database Text Replace</a>';
 						
 						echo '<a href="http://ithemes.com/codex/page/BackupBuddy" target="_blank">Knowledge Base</a>';
-						echo '<a href="http://ithemes.com/support/" target="_blank">Support Forum</a>';
+						echo '<a href="http://ithemes.com/support/" target="_blank">Support</a>';
 					}
 					
 					$simpleVersion = pb_backupbuddy::$options['bb_version'];
@@ -348,6 +355,7 @@ if ( ! defined( 'PB_IMPORTBUDDY' ) || ( true !== PB_IMPORTBUDDY ) ) {
 				<?php
 				echo pb_backupbuddy::$classes['import']->status_box( 'Status Log for for ImportBuddy from BackupBuddy v' . pb_backupbuddy::$options['bb_version'] . '...' );
 				?>
+				
 				<script>importbuddy_loadRestoreEvents();</script>
 				<?php
 			} else { ?>

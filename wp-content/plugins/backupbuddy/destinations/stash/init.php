@@ -32,6 +32,7 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 		'manage_all_files'			=>		'1',		// Allow user to manage all files in Stash? If enabled then user can view all files after entering their password. If disabled the link to view all is hidden.
 		'use_packaged_cert'			=>		'0',		// When 1, use the packaged cacert.pem file included with the AWS SDK.
 		'disable_file_management'	=>		'0',		// When 1, _manage.php will not load which renders remote file management DISABLED.
+		'disabled'					=>		'0',		// When 1, disable this destination.
 		
 		// Do not store these for destination settings. Only used to pass to functions in this file.
 		'_multipart_id'				=>		'',			// Instance var. Internal use only for continuing a chunked upload.
@@ -50,17 +51,22 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 	 *	
 	 *	Send one or more files.
 	 *	
-	 *	@param		array			$files			Array of one or more files to send.
-	 *	@return		boolean|array					True on success, false on failure, array if a multipart chunked send so there is no status yet.
+	 *	@param		array			$file			Array of one or more files to send.
+	 *	@return		boolean|array					True on success, false on failure, array( multipart_id, status_text ) if a multipart chunked send.
 	 */
-	public static function send( $settings = array(), $files = array(), $send_id = '', $delete_after = false, $clear_uploads = false ) {
+	public static function send( $settings = array(), $file, $send_id = '', $delete_after = false, $clear_uploads = false ) {
+		global $pb_backupbuddy_destination_errors;
+		if ( '1' == $settings['disabled'] ) {
+			$pb_backupbuddy_destination_errors[] = __( 'Error #48933: This destination is currently disabled. Enable it under this destination\'s Advanced Settings.', 'it-l10n-backupbuddy' );
+			return false;
+		}
+		if ( is_array( $file ) ) {
+			$file = $file[0];
+		}
 		
 		pb_backupbuddy::status( 'details', 'Post-send deletion: ' . $delete_after );
 		global $pb_backupbuddy_destination_errors;
 		
-		if ( !is_array( $files ) ) {
-			$files = array( $files );
-		}
 		if ( $clear_uploads === false ) { // Uncomment the following line to override and always clear.
 			//$clear_uploads = true;
 		}
@@ -240,7 +246,7 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 				
 				// Update stats.
 				$fileoptions['_multipart_status'] = $update_status;
-				$fileoptions['finish_time'] = time();
+				$fileoptions['finish_time'] = microtime(true);
 				$fileoptions['status'] = 'success';
 				if ( isset( $uploaded_speed ) ) {
 					$fileoptions['write_speed'] = $uploaded_speed;
@@ -256,11 +262,11 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 			delete_transient( 'pb_backupbuddy_stashquota_' . $settings['itxapi_username'] ); // Delete quota transient since it probably has changed now.
 			
 			// Schedule to continue if anything is left to upload for this multipart of any individual files.
-			if ( ( $settings['_multipart_id'] != '' ) || ( count( $files ) > 0 ) ) {
+			if ( $settings['_multipart_id'] != '' ) {
 				pb_backupbuddy::status( 'details', 'Stash multipart upload has more parts left. Scheduling next part send.' );
 				
 				$cronTime = time();
-				$cronArgs = array( $settings, $files, $send_id, $delete_after );
+				$cronArgs = array( $settings, $file, $send_id, $delete_after );
 				$cronHashID = md5( $cronTime . serialize( $cronArgs ) );
 				$cronArgs[] = $cronHashID;
 				
@@ -273,16 +279,22 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 				spawn_cron( time() + 150 ); // Adds > 60 seconds to get around once per minute cron running limit.
 				update_option( '_transient_doing_cron', 0 ); // Prevent cron-blocking for next item.
 				
-				return array( $settings['_multipart_id'], 'Sent part ' . $this_part_number . ' of ' . count( $settings['_multipart_counts'] ) . ' parts.' );
+				$update_status = '<br>';
+				$totalSent = 0;
+				for( $i = 0; $i < $settings['_multipart_partnumber']; $i++ ) {
+					$totalSent += $settings['_multipart_counts'][ $i ]['length'];
+				}
+				pb_backupbuddy::status( 'details', 'settings: ' . print_r( $settings, true ) );
+				$percentSent = ceil( ( $totalSent / $settings['file_size'] ) * 100 );
+				$update_status .= '<div class="backupbuddy-progressbar" data-percent="' . $percentSent . '"><div class="backupbuddy-progressbar-label"></div></div>';
+				
+				return array( $settings['_multipart_id'], 'Sent part ' . $this_part_number . ' of ' . count( $settings['_multipart_counts'] ) . ' parts.' . $update_status );
 			}
-		} // end if multipart continuation.
-		
-		
-		require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
-		
-		// Upload each file.
-		foreach( $files as $file_id => $file ) {
+		} else { // end if multipart continuation.
 			
+			
+			require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
+		
 			// Determine backup type directory (if zip).
 			$backup_type_dir = '';
 			$backup_type = '';
@@ -398,16 +410,15 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 				$multipart_destination_settings['_multipart_counts'] = $parts;
 				$multipart_destination_settings['_multipart_upload_data'] = $upload_data;
 				$multipart_destination_settings['_multipart_backup_type_dir'] = $backup_type_dir;
+				$multipart_destination_settings['file_size'] = $file_size;
 								
 				pb_backupbuddy::status( 'details', 'Stash multipart settings to pass:' . print_r( $multipart_destination_settings, true ) );
 				
-				unset( $files[$file_id] ); // Remove this file from queue of files to send as it is now passed off to be handled in multipart upload.
-				
 				// Schedule to process the parts.
-				pb_backupbuddy::status( 'details', 'Stash scheduling send of next part(s).' );
+				pb_backupbuddy::status( 'details', 'Stash scheduling send of next part(s). File: ' . $file );
 				
 				$cronTime = time();
-				$cronArgs = array( $multipart_destination_settings, $files, $send_id, $delete_after );
+				$cronArgs = array( $multipart_destination_settings, $file, $send_id, $delete_after );
 				$cronHashID = md5( $cronTime . serialize( $cronArgs ) );
 				$cronArgs[] = $cronHashID;
 				
@@ -495,8 +506,6 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 					return false;
 				}
 				
-				unset( $files[$file_id] ); // Remove from list of files we have not sent yet.
-				
 				pb_backupbuddy::status( 'details', 'Stash success sending file `' . basename( $file ) . '`. File uploaded and reported to Stash as completed.' );
 				
 				// Load destination fileoptions.
@@ -520,10 +529,9 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 				//$fileoptions['status'] = 'success';
 				unset( $fileoptions_obj );
 				
-			}
-			
-		} // end foreach.
-		
+				
+			} // end foreach.
+		} // End not multipart continuation.
 		
 		// BEGIN FILE LIMIT PROCESSING. Enforce archive limits if applicable.
 		if ( $backup_type == 'full' ) {
@@ -533,7 +541,7 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 			$limit = $db_archive_limit;
 			pb_backupbuddy::status( 'details', 'Stash database backup archive limit of `' . $limit . '` of type `db` based on destination settings.' );
 		} elseif ( $backup_type == 'files' ) {
-			$limit = $db_archive_limit;
+			$limit = $files_archive_limit;
 			pb_backupbuddy::status( 'details', 'Stash database backup archive limit of `' . $limit . '` of type `files` based on destination settings.' );
 		} else {
 			$limit = 0;
@@ -666,7 +674,7 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 			return 'Send details: `' . $send_response . '`. Delete details: `' . $delete_response . '`.';
 		} else {
 			$fileoptions['status'] = 'success';
-			$fileoptions['finish_time'] = time();
+			$fileoptions['finish_time'] = microtime(true);
 		}
 		
 		$fileoptions_obj->save();
@@ -686,7 +694,7 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 	public static function get_quota( $settings, $bypass_cache = false ) {
 		
 		
-		$cache_time = 43200; // 12 hours.
+		$cache_time = 60*5; // 5 minutes.
 		
 		if ( $bypass_cache == false ) {
 			$transient = get_transient( 'pb_backupbuddy_stashquota_' . $settings['itxapi_username'] );
@@ -703,7 +711,7 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 		
 		pb_backupbuddy::status( 'details', 'Loading ITX helper file.' );
 		require_once( dirname( __FILE__ ) . '/lib/class.itx_helper.php' );
-		pb_backupbuddy::status( 'details', 'Loading AWS SDK file.' );
+		pb_backupbuddy::status( 'details', 'Loading AWS SDK file for quota.' );
 		require_once( dirname( dirname( __FILE__ ) ) . '/_s3lib/aws-sdk/sdk.class.php' );
 		
 		$stash = new ITXAPI_Helper( pb_backupbuddy_destination_stash::ITXAPI_KEY, pb_backupbuddy_destination_stash::ITXAPI_URL, $itxapi_username, $itxapi_password );

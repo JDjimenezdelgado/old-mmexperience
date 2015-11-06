@@ -465,7 +465,7 @@ if ( pb_backupbuddy::_POST( 'add_profile' ) == 'true' ) {
 			__('Type | Profile', 'it-l10n-backupbuddy' ),
 			__('File Size', 'it-l10n-backupbuddy' ),
 			__('Trigger', 'it-l10n-backupbuddy' ),
-			__('Status', 'it-l10n-backupbuddy' ),
+			__('Status', 'it-l10n-backupbuddy' ) . ' <span class="description">(hover for options)</span>',
 		);
 
 		function pb_backupbuddy_aasort (&$array, $key) {
@@ -557,7 +557,7 @@ if ( pb_backupbuddy::_POST( 'add_profile' ) == 'true' ) {
 						<select name="type">
 							<option value="db"><?php _e( 'Database only', 'it-l10n-backupbuddy' ); ?></option>
 							<option value="full"><?php _e( 'Full (DB + Files)', 'it-l10n-backupbuddy' ); ?></option>
-							<option value="files"><?php _e( 'Files only (BETA)', 'it-l10n-backupbuddy' ); ?></option>
+							<option value="files"><?php _e( 'Files only', 'it-l10n-backupbuddy' ); ?></option>
 						</select>
 					</span>
 					<span class="profile_text"><input type="text" name="title" style="width: 150px" maxlength="20" placeholder="<?php _e( 'New profile title...', 'it-l10n-backupbuddy' ); ?>"></span>

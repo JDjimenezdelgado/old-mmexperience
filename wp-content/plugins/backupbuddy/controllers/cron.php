@@ -8,11 +8,9 @@ class pb_backupbuddy_cron extends pb_backupbuddy_croncore {
 		pb_backupbuddy::set_greedy_script_limits();
 		pb_backupbuddy::status( 'message', 'Running process for serial `' . $serial . '`...' );
 		
-		if ( !isset( pb_backupbuddy::$classes['backup'] ) ) {
-			require_once( pb_backupbuddy::plugin_path() . '/classes/backup.php' );
-			pb_backupbuddy::$classes['backup'] = new pb_backupbuddy_backup();
-		}
-		pb_backupbuddy::$classes['backup']->process_backup( $serial );
+		require_once( pb_backupbuddy::plugin_path() . '/classes/backup.php' );
+		$newBackup = new pb_backupbuddy_backup();
+		$newBackup->process_backup( $serial );
 	}
 	
 	
@@ -73,8 +71,7 @@ class pb_backupbuddy_cron extends pb_backupbuddy_croncore {
 	 *	@param		string		$send_id					Index ID of remote_sends associated with this send (if any).
 	 *	@return		null
 	 */
-	public function destination_send( $destination_settings, $files, $send_id = '', $delete_after = false, $identifier = '' ) {
-		
+	public function destination_send( $destination_settings, $files, $send_id = '', $delete_after = false, $identifier = '', $isRetry = false ) {
 		pb_backupbuddy::status( 'details', 'Beginning cron destination_send. Unique ID: `' . $identifier . '`.' );
 		if ( '' != $identifier ) {
 			$lockFile = backupbuddy_core::getLogDirectory() . 'cronSend-' . $identifier . '.lock';
@@ -100,7 +97,7 @@ class pb_backupbuddy_cron extends pb_backupbuddy_croncore {
 			require_once( pb_backupbuddy::plugin_path() . '/classes/core.php' );
 		}
 		
-		if ( true === backupbuddy_core::destination_send( $destination_settings, $files, $send_id, $delete_after ) ) { // completely finished, go ahead and clean up lock file.
+		if ( true === backupbuddy_core::destination_send( $destination_settings, $files, $send_id, $delete_after, $isRetry ) ) { // completely finished, go ahead and clean up lock file.
 			/* DO not delete here as we need to keep this locked down a little longer...
 			if ( '' != $identifier ) {
 				if ( true === @unlink( $lockFile ) ) {
@@ -165,6 +162,32 @@ class pb_backupbuddy_cron extends pb_backupbuddy_croncore {
 			$destination_file = str_replace( 'backup-', 'backup_copy_' . pb_backupbuddy::random_string( 5 ) . '-', $destination_file );
 		}
 		pb_backupbuddy::status( 'details', 'Filename of resulting local copy: `' . $destination_file . '`.' );
+		
+		if ( $destination_type == 'stash2' ) {
+			require_once( ABSPATH . 'wp-admin/includes/file.php' );
+			
+			pb_backupbuddy::status( 'details', 'About to begin downloading from URL.' );
+			$download = download_url( $url );
+			pb_backupbuddy::status( 'details', 'Download process complete.' );
+			if ( is_wp_error( $download ) ) {
+				$error = 'Error #832989323: Unable to download file `' . $file . '` from URL: `' . $url . '`. Details: `' . $download->get_error_message() . '`.';
+				pb_backupbuddy::status( 'error', $error );
+				pb_backupbuddy::alert( $error );
+				return false;
+			} else {
+				if ( false === copy( $download, $destination_file ) ) {
+					$error = 'Error #3329383: Unable to copy file from `' . $download . '` to `' . $destination_file . '`.';
+					pb_backupbuddy::status( 'error', $error );
+					pb_backupbuddy::alert( $error );
+					@unlink( $download );
+					return false;
+				} else {
+					pb_backupbuddy::status( 'details', 'File saved to `' . $destination_file . '`.' );
+					@unlink( $download );
+					return true;
+				}
+			}
+		} // end stash2.
 		
 		if ( $destination_type == 'stash' ) {
 			

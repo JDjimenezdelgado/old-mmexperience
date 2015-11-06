@@ -301,7 +301,7 @@ class pb_backupbuddy_fileoptions {
 		
 		if ( file_exists( $lockFile ) ) { // Locked; continue to unlock;
 			$this->_last_seen_lock_id = @file_get_contents( $lockFile );
-			$result = unlink(  $lockFile );
+			$result = @unlink(  $lockFile );
 			if ( true === $result ) {
 				if ( false === $destructorCalled ) {
 					pb_backupbuddy::status( 'details', 'Unlocked fileoptions lock file `' . $lockFile . '` with lock ID `' . $this->_last_seen_lock_id . '`.' );

@@ -126,7 +126,7 @@ if ( true === $show_config_form ) {
 	$default_name = NULL;
 	// Settings.
 	if ( 'add' == $mode ) {
-		$default_name = 'My Dropbox';
+		$default_name = 'My Dropbox (v2)';
 		$settings_form->add_setting( array(
 			'type'		=>		'hidden',
 			'name'		=>		'access_token',
@@ -178,7 +178,7 @@ if ( true === $show_config_form ) {
 		'tip'		=>		__( '[Example: 5] - Enter 0 for no chunking; minimum of 5 if enabling. This is the maximum file size to send in one whole piece. Files larger than this will be transferred in pieces up to this file size one part at a time. This allows to transfer of larger files than you server may allow by breaking up the send process. Chunked files may be delayed if there is little site traffic to trigger them.', 'it-l10n-backupbuddy' ),
 		'rules'		=>		'required|int[0-9999999]',
 		'css'		=>		'width: 50px;',
-		'after'		=>		' MB (leave at 0 if unsure)',
+		'after'		=>		' MB (recommended; leave at 80mb if unsure)',
 		'row_class'	=>		'advanced-toggle',
 	) );
 	if ( $mode !== 'edit' ) {
@@ -193,6 +193,17 @@ if ( true === $show_config_form ) {
 			'row_class'	=>		'advanced-toggle',
 		) );
 	}
+	$settings_form->add_setting( array(
+		'type'		=>		'checkbox',
+		'name'		=>		'disabled',
+		'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+		'title'		=>		__( 'Disable destination', 'it-l10n-backupbuddy' ),
+		'tip'		=>		__( '[Default: unchecked] - When checked, this destination will be disabled and unusable until re-enabled. Use this if you need to temporary turn a destination off but don\t want to delete it.', 'it-l10n-backupbuddy' ),
+		'css'		=>		'',
+		'after'		=>		'<span class="description"> ' . __('Check to disable this destination until re-enabled.', 'it-l10n-backupbuddy' ) . '</span>',
+		'rules'		=>		'',
+		'row_class'	=>		'advanced-toggle',
+	) );
 	
 } // End showing config form.
 

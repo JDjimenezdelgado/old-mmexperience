@@ -338,14 +338,6 @@
 	
     body{
     	    	 color: #818181;     	    	    }
-            body,
-		.wrapper,
-        .content,
-        .full_width,
-		.content .container,
-		.more_facts_holder{
-        	background-color:#dedede;
-        }
     
 
 
@@ -641,6 +633,9 @@ nav.mobile_menu ul li.current-menu-item > a{
 .q_google_map{
 	height: 755px;
 }
+	.footer_top_holder{
+		background-color:#ecce9c;
+	}
 
 	.footer_top{
 		padding-top: 109px; 		padding-bottom: 60px; 	}
@@ -651,19 +646,29 @@ nav.mobile_menu ul li.current-menu-item > a{
     .footer_top li,
     .footer_top .textwidget,
     .footer_top .widget_recent_entries>ul>li>span{
-		font-weight: 400	}
+		font-weight: 400;color: #704214	}
 
+	.footer_top a{
+		color: #704214	}
 
 
 	.footer_bottom_holder{
-		background-color:#565656;
+		background-color:#ecce9c;
 	}
 
+	
+	.footer_bottom, 
+	.footer_bottom span:not(.q_social_icon_holder):not(.fa-stack):not(.social_icon),
+	.footer_bottom p{
+		color: #704214	}
 
+	.footer_bottom a,
+	.footer_bottom ul li a{
+		color: #704214	}
 
 
 	.footer_top .widget h4 {
-		font-size: 18px;letter-spacing: 0px;font-weight: 400;text-transform: none	}
+		font-size: 18px;letter-spacing: 0px;font-weight: 400;text-transform: none;color: #704214	}
 
 	.footer_bottom { height: 41px; }
 
@@ -753,14 +758,20 @@ nav.mobile_menu ul li.current-menu-item > a{
 		text-align: center;
 	}
 
+	aside .vertical_menu_area_widget_holder,
+	aside .vertical_menu_area_widget_holder p,
+	aside .vertical_menu_area_widget_holder span{
+		color: #ffffff;
+	}
 
 	nav.vertical_menu > ul > li > a{
-	 color: #ffffff; 		 font-size: 18px;     		 font-weight: 400; 	 text-transform: none; 	 letter-spacing: 0px; 	
+	 color: #ffffff; 			font-family: 'Aladin', sans-serif;
+		 font-size: 24px;     		 font-weight: 400; 	 text-transform: none; 	 letter-spacing: 0px; 	
 	}
 
 	nav.vertical_menu > ul > li.active > a,
 	nav.vertical_menu > ul > li:hover > a{
-	color: #dd9933;
+	color: #dd7316;
 	}
 
 	.vertical_menu .second .inner > ul > li > a,
@@ -769,7 +780,7 @@ nav.mobile_menu ul li.current-menu-item > a{
 	}
 
 	.vertical_menu .second .inner > ul > li > a:hover{
-	color: #dd9933 !important;
+	color: #1a9b29 !important;
 	}
 
 	.vertical_menu .second .inner ul li.sub ul li a{
@@ -777,7 +788,7 @@ nav.mobile_menu ul li.current-menu-item > a{
 	}
 
 	.vertical_menu .second .inner ul li.sub ul li a:hover{
-	color: #dd9933 !important;
+	color: #1a9b29 !important;
 	}
 
 

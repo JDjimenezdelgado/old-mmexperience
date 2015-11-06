@@ -719,7 +719,7 @@ class pb_backupbuddy_ui {
 		
 		echo '<body class="wp-core-ui" style="background: inherit;">';
 		if ( $padding === true ) {
-			echo '<div style="padding: 12px; padding-left: 20px; padding-right: 20px;">';
+			echo '<div style="padding: 12px; padding-left: 20px; padding-right: 20px; overflow: scroll;">';
 		} else {
 			echo '<div>';
 		}

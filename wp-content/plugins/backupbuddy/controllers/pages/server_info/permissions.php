@@ -7,7 +7,7 @@ $directories = array(
 	ABSPATH . 'wp-includes/',
 	ABSPATH . 'wp-admin/',
 	WP_CONTENT_DIR . '/themes/',
-	WP_CONTENT_DIR . '/plugins/',
+	WP_PLUGIN_DIR . '/',
 	WP_CONTENT_DIR . '/',
 	//ABSPATH . 'wp-content/',
 	rtrim( $uploads_dirs['basedir'], '\\/' ) . '/',

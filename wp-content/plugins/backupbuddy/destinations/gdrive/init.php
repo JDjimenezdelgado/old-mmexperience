@@ -28,6 +28,7 @@ class pb_backupbuddy_destination_gdrive {
 		
 		'max_time'				=> '',	// Default max time in seconds to allow a send to run for. Set to 0 for no time limit. Aka no chunking.
 		'max_burst'				=> '25',	// Max size in mb of each burst within the same page load.
+		'disabled'					=>		'0',		// When 1, disable this destination.
 		
 		'_chunks_sent'			=> 0,			// Internal chunk counting.
 		'_chunks_total'			=> 0,			// Internal chunk counting.
@@ -58,7 +59,7 @@ class pb_backupbuddy_destination_gdrive {
 				$settings['tokens'] = base64_decode( $settings['tokens'] );
 				//$settings['tokens'] = stripslashes( $settings['tokens'] );
 			} else {
-				pb_backupbuddy::status( 'details', 'Tokens do not need base64 decoded.' );
+				pb_backupbuddy::status( 'details', 'Tokens do not need base64 decoded. Already done.' );
 			}
 		}
 		
@@ -188,6 +189,15 @@ class pb_backupbuddy_destination_gdrive {
 	 *	@return		boolean									True on success, else false.
 	 */
 	public static function send( $settings = array(), $files = array(), $send_id = '', $delete_after = false, $delete_remote_after = false ) {
+		global $pb_backupbuddy_destination_errors;
+		if ( '1' == $settings['disabled'] ) {
+			$pb_backupbuddy_destination_errors[] = __( 'Error #48933: This destination is currently disabled. Enable it under this destination\'s Advanced Settings.', 'it-l10n-backupbuddy' );
+			return false;
+		}
+		if ( ! is_array( $files ) ) {
+			$files = array( $files );
+		}
+		
 		pb_backupbuddy::status( 'details', 'Google Drive send() function started. Settings: `' . print_r( $settings, true ) . '`.' );
 		self::$_timeStart = microtime( true );
 		
@@ -343,9 +353,9 @@ class pb_backupbuddy_destination_gdrive {
 			$needProcessChunking = false; // Set true if we need to spawn off resuming to a new PHP page load.
 			$uploadStatus = false;
 			while (!$uploadStatus && !feof($fs)) {
-				pb_backupbuddy::status( 'details', 'Sending burst file data now.' );
 				$chunk = fread($fs, $chunkSizeBytes);
-				pb_backupbuddy::status( 'details', 'Total bytes summed: `' . ( $settings['_media_progress'] + strlen( $chunk) ) . '` of filesize: `' . $fileSize . '`.' );
+				pb_backupbuddy::status( 'details', 'Chunk of size `' . pb_backupbuddy::$format->file_size( $chunkSizeBytes ) . '` read into memory. Total bytes summed: `' . ( $settings['_media_progress'] + strlen( $chunk) ) . '` of filesize: `' . $fileSize . '`.' );
+				pb_backupbuddy::status( 'details', 'Sending burst file data next. If next message is not "Burst file data sent" then the send likely timed out. Try reducing burst size. Sending now...' );
 				
 				// Send chunk of data.
 				try {
@@ -381,7 +391,7 @@ class pb_backupbuddy_destination_gdrive {
 					}
 					$bytesWeCouldSendWithTimeLeft = $bytesPerSec * $timeRemaining;
 					
-					pb_backupbuddy::status( 'details', 'Total sent: `' . pb_backupbuddy::$format->file_size( $totalSizeSent ) .'`. Speed (per sec): `' . pb_backupbuddy::$format->file_size( $bytesPerSec ) . '`. Time Remaining (w/ wiggle): `' . $timeRemaining . '`. Size that be sent with remaining time: `' . pb_backupbuddy::$format->file_size( $bytesWeCouldSendWithTimeLeft ) . '` with chunk size of `' . pb_backupbuddy::$format->file_size( $chunkSizeBytes ) . '`.' );
+					pb_backupbuddy::status( 'details', 'Total sent: `' . pb_backupbuddy::$format->file_size( $totalSizeSent ) .'`. Speed (per sec): `' . pb_backupbuddy::$format->file_size( $bytesPerSec ) . '`. Time Remaining (w/ wiggle): `' . $timeRemaining . '`. Size that could potentially be sent with remaining time: `' . pb_backupbuddy::$format->file_size( $bytesWeCouldSendWithTimeLeft ) . '` with chunk size of `' . pb_backupbuddy::$format->file_size( $chunkSizeBytes ) . '`.' );
 					if ( $bytesWeCouldSendWithTimeLeft < $chunkSizeBytes ) { // We can send more than a whole chunk (including wiggle room) so send another bit.
 						pb_backupbuddy::status( 'message', 'Not enough time left (~`' . $timeRemaining  . '`) with max time of `' . $maxTime . '` sec to send another chunk at `' . pb_backupbuddy::$format->file_size( $bytesPerSec ) . '` / sec. Ran for ' . round( microtime( true ) - self::$_timeStart, 3 ) . ' sec. Proceeding to use chunking.' );
 						@fclose( $fs );
@@ -429,7 +439,7 @@ class pb_backupbuddy_destination_gdrive {
 						$fileoptions = &$fileoptions_obj->options;
 						
 						$fileoptions['_multipart_status'] = 'Sent part ' . $settings['_chunks_sent'] . ' of ~' . $settings['_chunks_total'] . ' parts.';
-						$fileoptions['finish_time'] = time();
+						$fileoptions['finish_time'] = microtime(true);
 						$fileoptions['status'] = 'success';
 						$fileoptions_obj->save();
 						unset( $fileoptions_obj );
@@ -463,23 +473,22 @@ class pb_backupbuddy_destination_gdrive {
 		// BEGIN FILE LIMIT PROCESSING. Enforce archive limits if applicable.
 		if ( $backup_type == 'full' ) {
 			$limit = $full_archive_limit;
-			pb_backupbuddy::status( 'details', 'Google Drive full backup archive limit of `' . $limit . '` of type `full` based on destination settings.' );
 		} elseif ( $backup_type == 'db' ) {
 			$limit = $db_archive_limit;
-			pb_backupbuddy::status( 'details', 'Google Drive database backup archive limit of `' . $limit . '` of type `db` based on destination settings.' );
 		} elseif ( $backup_type == 'files' ) {
-			$limit = $db_archive_limit;
-			pb_backupbuddy::status( 'details', 'Google Drive database backup archive limit of `' . $limit . '` of type `files` based on destination settings.' );
+			$limit = $files_archive_limit;
 		} else {
 			$limit = 0;
 			pb_backupbuddy::status( 'warning', 'Warning #34352453244. Google Drive was unable to determine backup type (reported: `' . $backup_type . '`) so archive limits NOT enforced for this backup.' );
 		}
+		pb_backupbuddy::status( 'details', 'Google Drive database backup archive limit of `' . $limit . '` of type `' . $backup_type . '` based on destination settings.' );
+		
 		if ( $limit > 0 ) {
 			
 			pb_backupbuddy::status( 'details', 'Google Drive archive limit enforcement beginning.' );
 			
 			// Get file listing.
-			$remoteFiles = pb_backupbuddy_destination_gdrive::listFiles( $settings, "title contains 'backup-' AND '" . $folderID . "' IN parents AND trashed=false" ); //"title contains 'backup' and trashed=false" );
+			$remoteFiles = pb_backupbuddy_destination_gdrive::listFiles( $settings, "title contains 'backup-' AND title contains '-" . $backup_type . "-' AND '" . $folderID . "' IN parents AND trashed=false" ); //"title contains 'backup' and trashed=false" );
 			
 			// List backups associated with this site by date.
 			$backups = array();

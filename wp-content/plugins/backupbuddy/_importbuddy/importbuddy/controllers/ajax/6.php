@@ -3,8 +3,8 @@ if ( ! defined( 'PB_IMPORTBUDDY' ) || ( true !== PB_IMPORTBUDDY ) ) {
 	die( '<html></html>' );
 }
 Auth::require_authentication(); // Die if not logged in.
-pb_backupbuddy::set_greedy_script_limits( true );
 pb_backupbuddy::load_view( '_iframe_header');
+pb_backupbuddy::set_greedy_script_limits();
 echo "<script>pageTitle( 'Step 6: Cleanup & Completion' );</script>";
 echo "<script>bb_showStep( 'cleanupSettings' );</script>";
 pb_backupbuddy::flush();

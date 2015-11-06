@@ -16,7 +16,8 @@ pb_backupbuddy::$ui->ajax_header();
 
 require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
 pb_backupbuddy::status( 'details', 'Fileoptions instance #27.' );
-$backup_options = new pb_backupbuddy_fileoptions( backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt', $read_only = true );
+$optionsFile = backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt';
+$backup_options = new pb_backupbuddy_fileoptions( $optionsFile, $read_only = true );
 if ( true !== ( $result = $backup_options->is_ok() ) ) {
 	pb_backupbuddy::alert( __('Unable to access fileoptions data file.', 'it-l10n-backupbuddy' ) . ' Error: ' . $result );
 	die();
@@ -236,7 +237,7 @@ if ( isset( $integrity['scan_time'] ) ) {
 echo '<br><br><br>';
 
 echo '<a class="button secondary-button" onclick="jQuery(\'#pb_backupbuddy_advanced_debug\').slideToggle();">Display Advanced Debugging</a>';
-echo '<div id="pb_backupbuddy_advanced_debug" style="display: none;">';
+echo '<div id="pb_backupbuddy_advanced_debug" style="display: none;">From options file: `' . $optionsFile . '`.<br>';
 echo '<textarea style="width: 100%; height: 400px;" wrap="on">';
 echo print_r( $backup_options->options, true );
 echo '</textarea><br><br>';

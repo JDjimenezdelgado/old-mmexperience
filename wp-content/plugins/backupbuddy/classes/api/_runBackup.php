@@ -23,7 +23,7 @@ if ( is_array( $generic_type_or_profile_id_or_array ) ) { // is a profile array
 			return 'Error #2332904: Invalid profile ID `' . htmlentities( $profile ) . '`. Profile with this number was not found. Try deactivating then reactivating the plugin. If this fails please reset the plugin Settings back to Defaults from the Settings page.';
 		}
 	} else {
-		return 'Error #85489548955. Invalid profile ID not numeric: `' . htmlentities( $profile ) . '`. Did you refresh? You will need to go back and try again.';
+		return 'Error #85489548955. You cannot refresh this page to re-run it to prevent accidents. You will need to go back and try again. (Invalid profile ID not numeric: `' . htmlentities( $profile ) . '`).';
 	}
 	
 }
@@ -38,10 +38,10 @@ if ( '' == $backupSerial ) {
 
 
 require_once( pb_backupbuddy::plugin_path() . '/classes/backup.php' );
-pb_backupbuddy::$classes['backup'] = new pb_backupbuddy_backup();
+$newBackup = new pb_backupbuddy_backup();
 
 // Run the backup!
-if ( pb_backupbuddy::$classes['backup']->start_backup_process(
+if ( $newBackup->start_backup_process(
 	$profileArray,											// Profile array.
 	$triggerTitle,											// Backup trigger. manual, scheduled
 	array(),												// pre-backup array of steps.

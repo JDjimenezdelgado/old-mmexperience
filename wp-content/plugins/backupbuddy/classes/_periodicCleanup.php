@@ -26,6 +26,12 @@ foreach( $files as $file ) {
 }
 
 
+// If temp directory exists (should only be transient but just in case it is hanging around) make sure it's secured. BB will try to delete this directory but if it can't it will at least be checked to be secure.
+if ( file_exists( backupbuddy_core::getTempDirectory() ) ) {
+	pb_backupbuddy::anti_directory_browsing( backupbuddy_core::getTempDirectory(), $die = false );
+}
+
+
 // Clean up any old cron file transfer locks.
 $files = (array)glob( backupbuddy_core::getLogDirectory() . 'cronSend-*' );
 foreach( $files as $file ) {
@@ -85,7 +91,7 @@ if ( is_array( $files ) && !empty( $files ) ) { // For robustness. Without open_
 	foreach( $files as $file ) {
 		$file_stats = stat( $file );
 		if ( $file_stats['size'] > ( $max_site_log_size ) ) {
-			backupbuddy_core::mail_error( 'NOTICE ONLY (not an error): A BackupBuddy log file has exceeded the size threshold of ' . $max_site_log_size . ' KB and has been deleted to maintain performance. This is only a notice. Deleted log file: ' . $file . '.' );
+			backupbuddy_core::mail_error( 'NOTICE ONLY (not an error): A BackupBuddy log file has exceeded the size threshold of ' . pb_backupbuddy::$format->file_size( $max_site_log_size ) . ' and has been deleted to maintain performance. This is only a notice. Deleted log file: ' . $file . '.' );
 			@unlink( $file );
 		}
 	}
@@ -158,19 +164,22 @@ foreach( $files as $file ) {
 							}
 						}
 						
+						$backupCheckSpot = __( 'Select "View recently made backups" from the BackupBuddy Backups page to find this backup and view its log details and/or manually create a backup to test for problems.', 'it-l10n-backupbuddy' );
+						$sendCheckSpot = __( 'Select "View recently sent files" on the Remote Destinations page to find this backup and view its log details and/or manually create a backup to test for problems.', 'it-l10n-backupbuddy' );
+						
 						$timeoutMessage = '';
 						if ( '' != $timeoutStep ) {
 							if ( 'backup_create_database_dump' == $timeoutStep ) {
-								$timeoutMessage = 'The database dump step appears to have timed out. Make sure your database is not full of unwanted logs or clutter.';
+								$timeoutMessage = 'The database dump step appears to have timed out. Make sure your database is not full of unwanted logs or clutter. ' . $backupCheckSpot;
 							} elseif ( 'backup_zip_files' == $timeoutStep ) {
-								$timeoutMessage = 'The zip archive creation step appears to have timed out. Try turning off zip compression to significantly speed up the process or exclude large files.';
+								$timeoutMessage = 'The zip archive creation step appears to have timed out. Try turning off zip compression to significantly speed up the process or exclude large files. ' . $backupCheckSpot;
 							} elseif ( 'send_remote_destination' == $timeoutStep ) {
-								$timeoutMessage = 'The remote transfer step appears to have timed out. Try turning on chunking in the destination settings to break up the file transfer into multiple steps.';
+								$timeoutMessage = 'The remote transfer step appears to have timed out. Try turning on chunking in the destination settings to break up the file transfer into multiple steps. ' . $sendCheckSpot;
 							} else {
-								$timeoutMessage = 'The step function `' . $timeoutStep . '` appears to have timed out.';
+								$timeoutMessage = 'The step function `' . $timeoutStep . '` appears to have timed out. ' . $backupCheckSpot;
 							}
 						}
-						$error_message = 'Scheduled BackupBuddy backup started `' . pb_backupbuddy::$format->time_ago( $backup_options->options['start_time'] ) . '` ago likely timed out. ' . $timeoutMessage . ' Check the error log for further details and/or manually create a backup to test for problems.';
+						$error_message = 'Scheduled BackupBuddy backup `' . $backup_options->options['archive_file'] . '` started `' . pb_backupbuddy::$format->time_ago( $backup_options->options['start_time'] ) . '` ago likely timed out. ' . $timeoutMessage;
 						
 						pb_backupbuddy::status( 'error', $error_message );
 						
@@ -185,8 +194,10 @@ foreach( $files as $file ) {
 				}
 			}
 			
-			
-			if ( ! file_exists( $backup_options->options['archive_file'] ) ) { // No corresponding backup ZIP file.
+			// Remove fileoptions files which do not have a corresponding local backup. NOTE: This only handles fileoptions files containing the 'archive_file' key in their array. Handle those without this elsewhere.
+			// Cached integrity scans performed when there was not an existing fileoptions file will be missing the archive_file key.
+			$backupDir = backupbuddy_core::getBackupDirectory();
+			if ( ( ! file_exists( $backup_options->options['archive_file'] ) ) && ( ! file_exists( $backupDir . basename( $backup_options->options['archive_file'] ) ) ) ) { // No corresponding backup ZIP file.
 				$modified = filemtime( $file );
 				if ( ( time() - $modified ) > backupbuddy_constants::MAX_SECONDS_TO_KEEP_ORPHANED_FILEOPTIONS_FILES ) { // Too many days old so delete.
 					if ( false === unlink( $file ) ) {
@@ -201,13 +212,38 @@ foreach( $files as $file ) {
 			} else { // Backup ZIP file exists.
 				
 			}
+		} else { // No archive_file key in fileoptions array.
+			
+			// Trim any fileoptions files that are orphaned (no matching backup zip file). Note that above we trim these files that have the archive_file key in them.
+			$backupDir = backupbuddy_core::getBackupDirectory();
+			$serial = backupbuddy_core::get_serial_from_file( '-' . basename( $file ) ); // Dash needed to trick get_serial_from_file() into thinking this is a valid backup filename.
+			$backupFiles = glob( $backupDir . '*' . $serial . '*.zip' ); // Try to find a matching backup zip with this serial in its filename.
+			if ( ! is_array( $backupFiles ) ) {
+				$backupFiles = array();
+			}
+			if ( 0 == count( $backupFiles ) ) { // No corresponding backup. Delete file.
+				$modified = filemtime( $file );
+				if ( ( time() - $modified ) > backupbuddy_constants::MAX_SECONDS_TO_KEEP_ORPHANED_FILEOPTIONS_FILES ) { // Too many days old so delete.
+					if ( false === unlink( $file ) ) {
+						pb_backupbuddy::status( 'error', 'Unable to delete orphaned fileoptions file `' . $file . '`.' );
+					}
+					if ( file_exists( $file . '.lock' ) ) {
+						@unlink( $file . '.lock' );
+					}
+				} else {
+					// Do not delete orphaned fileoptions because it is not old enough. Recent backups page needs these to list the backup.
+				}
+			} else {
+				//echo 'backupfound<br>';
+			}
+			
 		}
 	}
 } // end foreach.
 
 
 
-// Mark any timed out remote sends as timed out.
+// Mark any timed out remote sends as timed out. Attempt resend once.
 $remote_sends = array();
 $send_fileoptions = pb_backupbuddy::$filesystem->glob_by_date( backupbuddy_core::getLogDirectory() . 'fileoptions/send-*.txt' );
 if ( ! is_array( $send_fileoptions ) ) {
@@ -224,11 +260,6 @@ foreach( $send_fileoptions as $send_fileoption ) {
 		return false;
 	}
 	
-	echo '<pre>';
-	print_r( $fileoptions_obj->options );
-	echo '</pre>';
-	echo '<hr>';
-	
 	// Don't do anything for success, failure, or already-marked as -1 finish time.
 	if ( ( 'success' == $fileoptions_obj->options['status'] ) || ( 'failure' == $fileoptions_obj->options['status'] ) || ( -1 == $fileoptions_obj->options['finish_time'] ) ) {
 		continue;
@@ -241,8 +272,22 @@ foreach( $send_fileoptions as $send_fileoption ) {
 	
 	$secondsAgo = time() - $fileoptions_obj->options['update_time'];
 	if ( $secondsAgo > backupbuddy_constants::TIME_BEFORE_CONSIDERED_TIMEOUT ) { // If 24hrs passed since last update to backup then mark this timeout as failed.
+		
+		$isResending = backupbuddy_core::remoteSendRetry( $fileoptions_obj, $send_id, pb_backupbuddy::$options['remote_send_timeout_retries'] );
+		if ( true === $isResending ) { // If resending then skip sending any error email just yet...
+			continue;
+		}
+		
 		if ( 'timeout' != $fileoptions_obj->options['status'] ) { // Do not send email if status is 'timeout' since either already sent or old-style status marking (pre-v6.0).
-			$error_message = 'A remote destination send started `' . pb_backupbuddy::$format->time_ago( $fileoptions_obj->options['start_time'] ) . '` ago likely timed out. Check the error log for further details and/or manually send a backup to test for problems.';
+			// Calculate destination title and type for error email.
+			$destination_title = '';
+			$destination_type = '';
+			if ( isset( pb_backupbuddy::$options['remote_destinations'][$fileoptions_obj->options['destination'] ] ) ) {
+				$destination_title = pb_backupbuddy::$options['remote_destinations'][$fileoptions_obj->options['destination'] ]['title'];
+				$destination_type = backupbuddy_core::pretty_destination_type( pb_backupbuddy::$options['remote_destinations'][$fileoptions_obj->options['destination'] ]['type'] );
+			}
+			
+			$error_message = 'A remote destination send of file `' . basename( $fileoptions_obj->options['file'] ) . '` started `' . pb_backupbuddy::$format->time_ago( $fileoptions_obj->options['start_time'] ) . '` ago sending to the destination titled `' . $destination_title . '` of type `' . $destination_type . '` likely timed out. BackupBuddy will attempt to retry this failed transfer ONCE. If the second atempt succeeds the failed attempt will be replaced in the recent sends list. Check the error log for further details and/or manually send a backup to test for problems.';
 			pb_backupbuddy::status( 'error', $error_message );
 			if ( $secondsAgo < backupbuddy_constants::CLEANUP_MAX_AGE_TO_NOTIFY_TIMEOUT ) { // Prevents very old timed out backups from triggering email send.
 				backupbuddy_core::mail_error( $error_message );
@@ -355,23 +400,6 @@ if ( is_array( $files ) && !empty( $files ) ) { // For robustness. Without open_
 }
 
 
-// Cleanup remote S3 multipart chunking.
-foreach( pb_backupbuddy::$options['remote_destinations'] as $destination ) {
-	if ( $destination['type'] != 's3' ) { continue; }
-	if ( isset( $destination['max_chunk_size'] ) && ( $destination['max_chunk_size'] == '0' ) ) { continue; }
-	
-	pb_backupbuddy::status( 'details', 'Found S3 Multipart Chunking Destinations to cleanup.' );
-	require_once( pb_backupbuddy::plugin_path() . '/destinations/bootstrap.php' );
-	$cleanup_result = pb_backupbuddy_destinations::multipart_cleanup( $destination );
-	/*
-	if ( true === $cleanup_result ) {
-		pb_backupbuddy::status( 'details', 'S3 Multipart Chunking Cleanup Success.' );
-	} else {
-		pb_backupbuddy::status( 'error', 'S3 Multipart Chunking Cleanup FAILURE. Manually cleanup stalled multipart send via S3 or try again later.' );
-	}
-	*/
-}
-
 
 // Clean up any temp rollback or deployment database tables.
 backupbuddy_core::cleanup_temp_tables();
@@ -420,6 +448,56 @@ foreach ( (array) $cron as $time => $cron_item ) {
 } // End foreach.
 unset( $cron_item );
 unset( $time );
+
+
+
+// Cleanup any old notifications.
+$notifications = backupbuddy_core::getNotifications(); // Load notifications.
+$updateNotifications = false;
+$maxTimeDiff = pb_backupbuddy::$options['max_notifications_age_days'] * 24 * 60 * 60;
+foreach( $notifications as $i => $notification ) {
+	if ( ( time() - $notification['time'] ) > $maxTimeDiff ) {
+		unset( $notifications[ $i ] );
+		$updateNotifications = true;
+	}
+}
+if ( true === $updateNotifications ) {
+	pb_backupbuddy::status( 'details', 'Periodic cleanup: Replacing notifications.' );
+	backupbuddy_core::replaceNotifications( $notifications );
+}
+
+
+
+// Cleanup remote S3 multipart chunking.
+foreach( pb_backupbuddy::$options['remote_destinations'] as $destination ) {
+	if ( $destination['type'] != 's3' ) { continue; }
+	if ( isset( $destination['max_chunk_size'] ) && ( $destination['max_chunk_size'] == '0' ) ) { continue; }
+	
+	pb_backupbuddy::status( 'details', 'Found S3 Multipart Chunking Destinations to cleanup.' );
+	require_once( pb_backupbuddy::plugin_path() . '/destinations/bootstrap.php' );
+	$cleanup_result = pb_backupbuddy_destinations::multipart_cleanup( $destination );
+	if ( true === $cleanup_result ) {
+		pb_backupbuddy::status( 'details', 'S3 Multipart Chunking Cleanup Success.' );
+	} else {
+		pb_backupbuddy::status( 'warning', 'Warning #2389383: S3 Multipart Chunking Cleanup FAILURE. Manually cleanup stalled multipart send via S3 or try again later.' );
+	}
+}
+
+
+
+// Cleanup remote S32 multipart chunking.
+foreach( pb_backupbuddy::$options['remote_destinations'] as $destination ) {
+	if ( $destination['type'] != 's32' ) { continue; }
+	
+	pb_backupbuddy::status( 'details', 'Found S32 Multipart Chunking Destinations to cleanup.' );
+	require_once( pb_backupbuddy::plugin_path() . '/destinations/bootstrap.php' );
+	$cleanup_result = pb_backupbuddy_destinations::multipart_cleanup( $destination );
+	if ( true === $cleanup_result ) {
+		pb_backupbuddy::status( 'details', 'S32 Multipart Chunking Cleanup Success.' );
+	} else {
+		pb_backupbuddy::status( 'warning', 'Warning #2389328: S32 Multipart Chunking Cleanup FAILURE. Manually cleanup stalled multipart send via S3 or try again later.' );
+	}
+}
 
 
 

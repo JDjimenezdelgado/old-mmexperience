@@ -75,7 +75,7 @@ pb_backupbuddy::$ui->start_metabox( 'Tutorials & Support', true, true );
 - <a href="http://ithemes.com/backupbuddy-training/" target="_blank" style="text-decoration: none;">Tutorial & Walkthrough Videos</a><br>
 - <a href="http://ithemes.tv/category/backupbuddy/" target="_blank" style="text-decoration: none;">Getting Started Videos</a><br>
 - <a href="http://ithemes.com/codex/" target="_blank" style="text-decoration: none;">Knowledge Base Codex</a><br>
-- <a href="http://ithemes.com/support/" target="_blank" style="text-decoration: none;">Support Forum</a>
+- <a href="http://ithemes.com/support/" target="_blank" style="text-decoration: none;">Support</a>
 <?php
 pb_backupbuddy::$ui->end_metabox();
 

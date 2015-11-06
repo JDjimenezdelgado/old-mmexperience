@@ -144,7 +144,7 @@ if ( ( $mode == 'save' ) || ( $mode == 'edit' ) || ( $itxapi_username != '' ) ) 
 		<a href="http://ithemes.com/member/cart.php?action=add&id=290" target="_blank" style="text-decoration: none; font-weight: 600; font-size: 1.1em;">+ 10GB</a>, &nbsp;
 		<a href="http://ithemes.com/member/cart.php?action=add&id=290" target="_blank" style="text-decoration: none; font-weight: 800; font-size: 1.2em;">+ 25GB</a>
 		&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
-		<a href="http://ithemes.com/member/panel/stash.php" target="_blank" style="text-decoration: none;"><b>Manage Files & Account</b></a>
+		<a href="https://sync.ithemes.com/stash/" target="_blank" style="text-decoration: none;"><b>Manage Files & Account</b></a>
 		';
 		echo '<br><br></div>';
 		
@@ -254,6 +254,17 @@ if ( ( $mode == 'save' ) || ( $mode == 'edit' ) || ( $itxapi_username != '' ) ) 
 			'row_class'	=>		'advanced-toggle',
 		) );
 	}
+	$settings_form->add_setting( array(
+		'type'		=>		'checkbox',
+		'name'		=>		'disabled',
+		'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+		'title'		=>		__( 'Disable destination', 'it-l10n-backupbuddy' ),
+		'tip'		=>		__( '[Default: unchecked] - When checked, this destination will be disabled and unusable until re-enabled. Use this if you need to temporary turn a destination off but don\t want to delete it.', 'it-l10n-backupbuddy' ),
+		'css'		=>		'',
+		'after'		=>		'<span class="description"> ' . __('Check to disable this destination until re-enabled.', 'it-l10n-backupbuddy' ) . '</span>',
+		'rules'		=>		'',
+		'row_class'	=>		'advanced-toggle',
+	) );
 	$settings_form->add_setting( array(
 		'type'		=>		'hidden',
 		'name'		=>		'itxapi_username',

@@ -161,22 +161,32 @@ pb_backupbuddy::$ui->list_table(
 
 
 
+echo '<center>' . __('Current Time', 'it-l10n-backupbuddy' ) . ': ' . pb_backupbuddy::$format->date( time() + ( get_option( 'gmt_offset' ) * 3600 ) ) . ' (' . time() . ')</center>';
+
 
 
 if ( empty( $_GET['show_cron_array'] ) ) {
-	echo '<br>';
-	echo '<center>';
-	echo __('Current Time', 'it-l10n-backupbuddy' ) . ': ' . pb_backupbuddy::$format->date( time() + ( get_option( 'gmt_offset' ) * 3600 ) ) . ' (' . time() . '). ';
-	echo 'Additional cron control is available via the free plugin <a target="_blank" href="http://wordpress.org/extend/plugins/wp-cron-control/">WP-Cron Control</a> by Automaticc. ';
-	echo '<a href="' . pb_backupbuddy::page_url() . '&tab=3&show_cron_array=true#pb_backupbuddy_getting_started_tab_tools" style="text-decoration: none;">' . __('Display CRON Debugging Array', 'it-l10n-backupbuddy' ) . '</a>';
-	echo '</center>';
+	?>
+	<p>
+	<center>
+		<a href="<?php echo pb_backupbuddy::page_url(); ?>&tab=3&show_cron_array=true#pb_backupbuddy_getting_started_tab_tools" style="text-decoration: none;">
+			<?php _e('Display CRON Debugging Array', 'it-l10n-backupbuddy' ); ?>
+		</a>
+	</center>
+	</p>
+	<?php
 } else {
-	echo __('Current Time', 'it-l10n-backupbuddy' ) . ': ' . pb_backupbuddy::$format->date( time() + ( get_option( 'gmt_offset' ) * 3600 ) ) . ' (' . time() . ')';
+	
 	echo '<br><textarea readonly="readonly" style="width: 793px;" rows="13" cols="75" wrap="off">';
 	print_r( $cron );
-	echo '</textarea>';
+	echo '</textarea><br><br>';
 }
-echo '<br>';
-
 unset( $cron );
 ?>
+
+<br>
+<div class="description">
+	<b>Note</b>: Due to the way schedules are triggered in WordPress your site must be accessed (frontend or admin area) for scheduled backups to occur.
+	WordPress scheduled events ("crons") may be viewed or run manually in the table above</a>. A <a href="https://www.google.com/search?q=free+website+uptime&oq=free+website+uptime" target="_blank">free website uptime</a> service or <a href="https://ithemes.com/sync-pro/uptime-monitoring/" target="_blank">iThemes Sync Pro's Uptime Monitoring</a> can be used to automatically access your site regularly to help trigger scheduled actions ("crons") in cases of low site activity, with the added perk of keeping track of your site uptime.
+</div>
+

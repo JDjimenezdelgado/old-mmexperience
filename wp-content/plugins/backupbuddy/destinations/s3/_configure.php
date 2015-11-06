@@ -48,6 +48,7 @@ $settings_form->add_setting( array(
 	'title'		=>		__( 'AWS access key', 'it-l10n-backupbuddy' ),
 	'tip'		=>		__( '[Example: BSEGHGSDEUOXSQOPGSBE] - Log in to your Amazon S3 AWS Account and navigate to Account: Access Credentials: Security Credentials.', 'it-l10n-backupbuddy' ),
 	'rules'		=>		'required|string[1-45]',
+	'after'		=>		' <a target="_new" href="http://ithemes.com/codex/page/BackupBuddy_Remote_Destinations:_Amazon_S3">Help setting up S3</a>',
 ) );
 
 
@@ -61,7 +62,6 @@ $settings_form->add_setting( array(
 	'name'		=>		'secretkey',
 	'title'		=>		__( 'AWS secret key', 'it-l10n-backupbuddy' ),
 	'tip'		=>		__( '[Example: GHOIDDWE56SDSAZXMOPR] - Log in to your Amazon S3 AWS Account and navigate to Account: Access Credentials: Security Credentials.', 'it-l10n-backupbuddy' ),
-	'after'		=>		'',
 	'rules'		=>		'required|string[1-45]',
 ) );
 
@@ -188,3 +188,14 @@ if ( $mode !== 'edit' ) {
 		'row_class'	=>		'advanced-toggle',
 	) );
 }
+$settings_form->add_setting( array(
+	'type'		=>		'checkbox',
+	'name'		=>		'disabled',
+	'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+	'title'		=>		__( 'Disable destination', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__( '[Default: unchecked] - When checked, this destination will be disabled and unusable until re-enabled. Use this if you need to temporary turn a destination off but don\t want to delete it.', 'it-l10n-backupbuddy' ),
+	'css'		=>		'',
+	'after'		=>		'<span class="description"> ' . __('Check to disable this destination until re-enabled.', 'it-l10n-backupbuddy' ) . '</span>',
+	'rules'		=>		'',
+	'row_class'	=>		'advanced-toggle',
+) );
