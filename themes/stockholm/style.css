@@ -78,3 +78,30 @@ CSS changes can be made in files in the /css/ folder. This is a placeholder file
 .gform_wrapper .date_pick .datepicker {
     width: 10.75em !important;
 }
+
+.input-full-width, .input-full-width input, .input-kids-form input, .text-area-form, .text-area-form textarea{
+	width: 100% !important;
+}
+.input-half-width{
+	width: 45% !important;
+}
+.tour-form .gform_footer.left_label{
+    padding: 0 !important;
+    margin: auto !important;
+    width: 100% !important;
+}
+.tour-form .gform_footer{
+  text-align: center !important;
+}
+
+.input-kids-form{
+	width: 48% !important;
+ 	margin: auto !important;
+}
+.adult-select, .kids-select{
+	width: 24% !important;
+}
+div.ppt, p.pp_description{
+	display: none !important; 
+}
+ 
